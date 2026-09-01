@@ -86,6 +86,10 @@ const ui = {
   onlineClass: document.getElementById("onlineClass"),
   onlineStudent: document.getElementById("onlineStudent"),
   onlineBackground: document.getElementById("onlineBackground"),
+  onlineServerTrack: document.getElementById("onlineServerTrack"),
+  onlineServerFigure: document.getElementById("onlineServerFigure"),
+  onlineApplyTrackButton: document.getElementById("onlineApplyTrackButton"),
+  onlineApplyFigureButton: document.getElementById("onlineApplyFigureButton"),
   onlineLoadButton: document.getElementById("onlineLoadButton"),
   onlineSaveButton: document.getElementById("onlineSaveButton"),
   onlineRefreshButton: document.getElementById("onlineRefreshButton"),
@@ -152,7 +156,7 @@ const PUBLIC_TUTORIAL_MODE = onlineQuery.get("tutorial") === "1" || onlineQuery.
   && /^\/tegnespil\/?$/i.test(window.location.pathname)
 );
 const ONLINE_API_BASE = String(onlineQuery.get("api") || "").trim().replace(/\/+$/, "");
-let onlineState = { classes: [], backgrounds: [] };
+let onlineState = { classes: [], backgrounds: [], tracks: [], figures: [] };
 const GRID_LIMITS = Object.freeze({ min: 1, max: 128 });
 const DEFAULT_GRID = Object.freeze({ cols: 15, rows: 15 });
 // The built-in track is an old 32x42 example. Keep its fallback intact so
@@ -2435,6 +2439,7 @@ async function refreshOnlineClasses() {
       : onlineState.classes[0].id;
   }
   await refreshOnlineBackgrounds();
+  await refreshOnlineLibrary();
 }
 
 async function refreshOnlineBackgrounds() {
@@ -2462,10 +2467,104 @@ async function refreshOnlineBackgrounds() {
   onlineState.backgrounds.forEach((entry) => {
     const option = document.createElement("option");
     option.value = entry.id;
-    option.textContent = entry.name;
+    option.textContent = entry.displayName || entry.name;
     ui.onlineBackground.appendChild(option);
   });
   ui.onlineBackground.disabled = onlineState.backgrounds.length === 0;
+}
+
+function populateOnlineLibrarySelect(select, entries, emptyText) {
+  if (!select) return;
+  const previous = select.value;
+  select.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = entries.length ? emptyText : "Ingen filer endnu";
+  select.appendChild(placeholder);
+  entries.forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.id;
+    option.textContent = entry.name;
+    select.appendChild(option);
+  });
+  select.value = entries.some((entry) => entry.id === previous) ? previous : "";
+  select.disabled = entries.length === 0;
+}
+
+async function refreshOnlineLibrary() {
+  if (!ONLINE_MODE) return;
+  const classId = ui.onlineClass?.value || "";
+  if (!classId) {
+    onlineState.tracks = [];
+    onlineState.figures = [];
+    populateOnlineLibrarySelect(ui.onlineServerTrack, [], "Vælg bane…");
+    populateOnlineLibrarySelect(ui.onlineServerFigure, [], "Vælg figur…");
+    if (ui.onlineApplyTrackButton) ui.onlineApplyTrackButton.disabled = true;
+    if (ui.onlineApplyFigureButton) ui.onlineApplyFigureButton.disabled = true;
+    return;
+  }
+  const payload = await onlineApi(`/api/classes/${encodeURIComponent(classId)}/library`);
+  onlineState.tracks = (Array.isArray(payload.tracks) ? payload.tracks : []).map((entry) => ({
+    ...entry,
+    url: onlineApiUrl(entry.url),
+  }));
+  onlineState.figures = (Array.isArray(payload.figures) ? payload.figures : []).map((entry) => ({
+    ...entry,
+    url: onlineApiUrl(entry.url),
+  }));
+  populateOnlineLibrarySelect(ui.onlineServerTrack, onlineState.tracks, "Vælg bane…");
+  populateOnlineLibrarySelect(ui.onlineServerFigure, onlineState.figures, "Vælg figur…");
+  if (ui.onlineApplyTrackButton) ui.onlineApplyTrackButton.disabled = onlineState.tracks.length === 0;
+  if (ui.onlineApplyFigureButton) ui.onlineApplyFigureButton.disabled = onlineState.figures.length === 0;
+}
+
+async function applyOnlineLibraryAsset(kind) {
+  if (!ONLINE_MODE || !game) return;
+  const isTrack = kind === "track";
+  const select = isTrack ? ui.onlineServerTrack : ui.onlineServerFigure;
+  const entry = (isTrack ? onlineState.tracks : onlineState.figures)
+    .find((candidate) => candidate.id === select?.value);
+  if (!entry) {
+    setOnlineStatus(`Vælg først en ${isTrack ? "bane" : "figur"} fra serveren.`, true);
+    return;
+  }
+  try {
+    if (mode === "play") setMode("editor");
+    await commitActiveTrack();
+    const track = activeTrack();
+    const sourceId = onlineStudentId(`server_${safeFileId(entry.id)}`).slice(0, 48)
+      || (isTrack ? "server_track" : "server_figure");
+    if (isTrack) {
+      currentTrackId = sourceId;
+      track.id = currentTrackId;
+      track.label = entry.name;
+      selectedTrackFileUrl = entry.url;
+      track.trackImageData = entry.url;
+      config.id = currentTrackId;
+      config.trackImage = entry.url;
+      trackImage.src = entry.url;
+      await waitForImage(trackImage);
+      if (!trackImage.naturalWidth) throw new Error("Banebilledet kunne ikke indlæses.");
+      resizeCanvas();
+    } else {
+      currentFigureId = sourceId;
+      track.figureId = currentFigureId;
+      selectedFigureFileUrl = entry.url;
+      track.figureImageData = entry.url;
+      config.figureImage = entry.url;
+      figureImage.src = entry.url;
+      await waitForImage(figureImage);
+      if (!figureImage.naturalWidth) throw new Error("Figurbilledet kunne ikke indlæses.");
+    }
+    track.config = JSON.parse(JSON.stringify(config));
+    state = newGameState();
+    syncUiFromConfig();
+    saveGameToStorage();
+    draw();
+    setOnlineStatus(`${isTrack ? "Bane" : "Figur"} valgt fra serveren: ${entry.name}`);
+  } catch (error) {
+    setOnlineStatus(error.message || "Materialet kunne ikke indlæses.", true);
+  }
 }
 
 async function applyOnlineBackground() {
@@ -3425,9 +3524,21 @@ ui.proCopyWalkableButton.addEventListener("click", copyProWalkable);
 ui.proFrameFileInput.addEventListener("change", addProImageFrames);
 
 if (ui.onlinePanel) {
-  ui.onlineClass.addEventListener("change", () => { void refreshOnlineBackgrounds(); });
+  ui.onlineClass.addEventListener("change", () => {
+    void Promise.all([refreshOnlineBackgrounds(), refreshOnlineLibrary()]).catch((error) => {
+      setOnlineStatus(error.message || "Listerne kunne ikke opdateres.", true);
+    });
+  });
   ui.onlineBackground.addEventListener("change", () => { void applyOnlineBackground(); });
-  ui.onlineRefreshButton.addEventListener("click", () => { void refreshOnlineBackgrounds(); });
+  ui.onlineApplyTrackButton.addEventListener("click", () => { void applyOnlineLibraryAsset("track"); });
+  ui.onlineApplyFigureButton.addEventListener("click", () => { void applyOnlineLibraryAsset("figure"); });
+  ui.onlineRefreshButton.addEventListener("click", () => {
+    void Promise.all([refreshOnlineBackgrounds(), refreshOnlineLibrary()]).then(() => {
+      setOnlineStatus("Listerne er opdateret.");
+    }).catch((error) => {
+      setOnlineStatus(error.message || "Listerne kunne ikke opdateres.", true);
+    });
+  });
   ui.onlineSaveButton.addEventListener("click", () => { void saveOnlineGame(); });
   ui.onlineLoadButton.addEventListener("click", () => { void loadOnlineGame(); });
 }

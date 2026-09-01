@@ -60,7 +60,7 @@
           </div>
 
           <button id="resetButton" type="button">Nulstil</button>
-          <button id="saveButton" class="toolbar-editor-only" type="button">Gem</button>
+          <button id="saveButton" class="toolbar-editor-only" type="button" title="Henter en .dgm-fil til denne computer">Gem som fil</button>
           <button id="createNewButton" type="button">Opret nyt spil</button>
           <label id="openBundleLabel" class="file-button">
             Åbn
@@ -102,7 +102,7 @@
             <h2 id="onlinePanelTitle">Online gemning</h2>
             <span class="online-badge">Klasseserver</span>
           </div>
-          <p class="hint">Vælg klasse, elev og baggrund for at hente eller gemme et spil online.</p>
+          <p class="hint">Vælg klasse og elev for at hente eller gemme et spil online. Baner og figurer kan hentes enten lokalt eller fra klassens materialemapper på serveren.</p>
 
           <div class="online-fields">
             <label for="onlineClass">
@@ -125,10 +125,33 @@
             </label>
           </div>
 
+          <fieldset class="online-library" aria-describedby="onlineLibraryHelp">
+            <legend>Fælles materialer</legend>
+            <p id="onlineLibraryHelp" class="hint">Læreren lægger billedfiler i klassens <strong>Baner</strong>- og <strong>Figurer</strong>-mapper. Undermapper vises i listen.</p>
+            <div class="online-fields">
+              <label for="onlineServerTrack">
+                Bane fra server
+                <select id="onlineServerTrack">
+                  <option value="">Vælg bane…</option>
+                </select>
+              </label>
+              <label for="onlineServerFigure">
+                Figur fra server
+                <select id="onlineServerFigure">
+                  <option value="">Vælg figur…</option>
+                </select>
+              </label>
+            </div>
+            <div class="online-actions online-library-actions">
+              <button id="onlineApplyTrackButton" type="button">Indlæs bane fra server</button>
+              <button id="onlineApplyFigureButton" type="button">Indlæs figur fra server</button>
+            </div>
+          </fieldset>
+
           <div class="online-actions">
-            <button id="onlineLoadButton" type="button">Hent spil</button>
-            <button id="onlineSaveButton" class="primary" type="button">Gem online</button>
-            <button id="onlineRefreshButton" type="button">Opdatér lister</button>
+            <button id="onlineLoadButton" type="button">Hent spil fra server</button>
+            <button id="onlineSaveButton" class="primary" type="button">Gem på server</button>
+            <button id="onlineRefreshButton" type="button">Opdatér serverlister</button>
           </div>
 
           <p id="onlineStatus" class="online-status" role="status" aria-live="polite">Ikke tilsluttet</p>
@@ -284,7 +307,7 @@
             </div>
 
             <div class="hint">
-              Brug <strong>Indlaes bane</strong> og <strong>Indlaes figur</strong> hver for sig. Tegn derefter felter, tilfoej genstande, saet start og gem.
+              Brug <strong>Indlaes bane</strong> og <strong>Indlaes figur</strong> for at vælge filer fra denne computer. Når klasseserveren bruges, kan du også vælge fælles baner og figurer i feltet ovenfor. Tegn derefter felter, tilfoej genstande, saet start og gem.
             </div>
           </details>
         </div>

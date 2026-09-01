@@ -12,7 +12,13 @@ const port = Number(process.env.TEGNE_SPIL_PORT || 8787);
 // generous limit while still bounding the request that the teacher computer
 // will accept.
 const maxGameBytes = 64 * 1024 * 1024;
-const allowedImageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const allowedImageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
+const libraryKinds = new Map([
+  ["tracks", { directory: "Baner", extensions: allowedImageExtensions }],
+  ["figures", { directory: "Figurer", extensions: allowedImageExtensions }],
+]);
+const maxLibraryEntries = 5000;
+const maxLibraryDepth = 16;
 const allowedStaticRoots = new Set(["src", "Configs", "Tracks", "Figures", "Music", "Spil", "assets"]);
 const mimeTypes = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -47,6 +53,27 @@ function safeStudentId(value) {
 function insideRoot(root, target) {
   const relative = path.relative(root, target);
   return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+function safeLibrarySegment(value) {
+  const segment = String(value || "");
+  if (!segment || segment === "." || segment === ".." || segment.length > 128) return false;
+  if (/[/\\\0]/.test(segment) || /[<>:"|?*]/.test(segment)) return false;
+  if (/[\u0000-\u001f\u007f]/.test(segment) || /[. ]$/.test(segment)) return false;
+  return true;
+}
+
+function safeLibraryId(value) {
+  const id = String(value || "");
+  if (!id || id.length > 1024 || id.includes("\\")) return null;
+  const segments = id.split("/");
+  if (segments.some((segment) => !safeLibrarySegment(segment))) return null;
+  return segments.join("/");
+}
+
+function libraryFileUrl(classId, kind, id) {
+  const params = new URLSearchParams({ class: classId, kind, id });
+  return `/api/library/file?${params.toString()}`;
 }
 
 function corsHeaders() {
@@ -99,6 +126,11 @@ function validateImageSource(value, fieldName) {
   }
   if (/^data:image\/(?:png|jpe?g|webp);base64,/i.test(value)) return;
   if (/^(?:https?:\/\/|\/|[A-Za-z0-9_.~%+:/?&=-]+$)/.test(value)) return;
+  // Older locally saved games can refer to bundled images whose filenames
+  // contain spaces (for example "Tracks/track_1 - Kopi.JPEG"). These are
+  // still plain relative image paths, never executable content.
+  if (/^[A-Za-z0-9][A-Za-z0-9 _./()%-]*$/.test(value)
+    && !value.split("/").some((part) => part === ".." || part === ".")) return;
   throw new Error(`${fieldName} har en ugyldig billedadresse.`);
 }
 
@@ -170,6 +202,165 @@ async function listBackgrounds(classId) {
   }
 }
 
+async function listLibraryFiles(classId, kind) {
+  const libraryKind = libraryKinds.get(kind);
+  const libraryRoot = path.resolve(dataRoot, classId, libraryKind.directory);
+  const files = [];
+
+  async function visit(directory, relativeDirectory, depth) {
+    if (depth > maxLibraryDepth) throw new Error("Biblioteket har for mange undermappeniveauer.");
+    let entries;
+    try {
+      entries = await fs.readdir(directory, { withFileTypes: true });
+    } catch (error) {
+      if (error.code === "ENOENT") return;
+      throw error;
+    }
+    entries.sort((left, right) => left.name.localeCompare(right.name, "da", { sensitivity: "base" }));
+    for (const entry of entries) {
+      if (!safeLibrarySegment(entry.name)) continue;
+      const relativeId = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+      const entryPath = path.resolve(directory, entry.name);
+      if (!insideRoot(libraryRoot, entryPath)) continue;
+      if (entry.isDirectory()) {
+        await visit(entryPath, relativeId, depth + 1);
+        continue;
+      }
+      if (!entry.isFile() || !libraryKind.extensions.has(path.extname(entry.name).toLowerCase())) continue;
+      const details = await fs.stat(entryPath);
+      if (files.length >= maxLibraryEntries) throw new Error("Biblioteket indeholder for mange filer.");
+      files.push({
+        id: relativeId,
+        name: entry.name,
+        displayName: relativeId,
+        url: libraryFileUrl(classId, kind, relativeId),
+        type: mimeTypes.get(path.extname(entry.name).toLowerCase()) || "application/octet-stream",
+        size: details.size,
+      });
+    }
+  }
+
+  await visit(libraryRoot, "", 0);
+  return files;
+}
+
+async function listClassLibrary(classId) {
+  const [tracks, figures] = await Promise.all([
+    listLibraryFiles(classId, "tracks"),
+    listLibraryFiles(classId, "figures"),
+  ]);
+  return { tracks, figures };
+}
+
+async function serveLibraryFile(response, classId, kind, id) {
+  const libraryKind = libraryKinds.get(kind);
+  const safeId = safeLibraryId(id);
+  if (!safeId) {
+    sendJson(response, 400, { error: "Ugyldigt biblioteks-id." });
+    return;
+  }
+  const extension = path.extname(safeId).toLowerCase();
+  if (!libraryKind.extensions.has(extension)) {
+    sendJson(response, 400, { error: "Filtypen understøttes ikke i dette bibliotek." });
+    return;
+  }
+  const libraryRoot = path.resolve(dataRoot, classId, libraryKind.directory);
+  const filePath = path.resolve(libraryRoot, ...safeId.split("/"));
+  if (!insideRoot(libraryRoot, filePath)) {
+    sendJson(response, 400, { error: "Ugyldig bibliotekssti." });
+    return;
+  }
+  let details;
+  try {
+    details = await fs.lstat(filePath);
+    if (!details.isFile()) throw new Error("not-file");
+  } catch (error) {
+    if (error.code === "ENOENT") sendJson(response, 404, { error: "Biblioteksfilen findes ikke." });
+    else sendJson(response, 404, { error: "Biblioteksfilen kunne ikke læses." });
+    return;
+  }
+  response.writeHead(200, {
+    ...corsHeaders(),
+    "Content-Type": mimeTypes.get(extension) || "application/octet-stream",
+    "Content-Length": details.size,
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "no-store",
+  });
+  createReadStream(filePath).on("error", () => {
+    if (!response.headersSent) sendText(response, 404, "Biblioteksfilen kunne ikke læses.");
+    else response.end();
+  }).pipe(response);
+}
+
+async function handleLibraryApi(request, response, parsedUrl, isFileRoute) {
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Biblioteket understøtter kun GET." }, { Allow: "GET" });
+    return true;
+  }
+  const expectedKeys = new Set(isFileRoute ? ["class", "kind", "id"] : ["class", "kind"]);
+  if ([...parsedUrl.searchParams.keys()].some((key) => !expectedKeys.has(key))) {
+    sendJson(response, 400, { error: "Ugyldige biblioteksparametre." });
+    return true;
+  }
+  const classValues = parsedUrl.searchParams.getAll("class");
+  const kindValues = parsedUrl.searchParams.getAll("kind");
+  const classId = classValues.length === 1 ? safeSegment(classValues[0]) : null;
+  const kind = kindValues.length === 1 ? kindValues[0] : null;
+  if (!classId || !libraryKinds.has(kind)) {
+    sendJson(response, 400, { error: "Ugyldig klasse eller bibliotekstype." });
+    return true;
+  }
+  if (isFileRoute) {
+    const idValues = parsedUrl.searchParams.getAll("id");
+    if (idValues.length !== 1) {
+      sendJson(response, 400, { error: "Biblioteksfilen mangler et id." });
+      return true;
+    }
+    await serveLibraryFile(response, classId, kind, idValues[0]);
+    return true;
+  }
+  const classRoot = path.join(dataRoot, classId);
+  try {
+    const details = await fs.stat(classRoot);
+    if (!details.isDirectory()) throw new Error("not-directory");
+  } catch {
+    sendJson(response, 404, { error: "Klassen findes ikke endnu." });
+    return true;
+  }
+  try {
+    sendJson(response, 200, { class: classId, kind, files: await listLibraryFiles(classId, kind) });
+  } catch (error) {
+    sendJson(response, 500, { error: error.message || "Biblioteket kunne ikke læses." });
+  }
+  return true;
+}
+
+async function handleClassLibraryApi(request, response, classId) {
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Biblioteket understøtter kun GET." }, { Allow: "GET" });
+    return true;
+  }
+  const safeClassId = safeSegment(classId);
+  if (!safeClassId) {
+    sendJson(response, 400, { error: "Ugyldig klasse." });
+    return true;
+  }
+  const classRoot = path.join(dataRoot, safeClassId);
+  try {
+    const details = await fs.stat(classRoot);
+    if (!details.isDirectory()) throw new Error("not-directory");
+  } catch {
+    sendJson(response, 404, { error: "Klassen findes ikke endnu." });
+    return true;
+  }
+  try {
+    sendJson(response, 200, await listClassLibrary(safeClassId));
+  } catch (error) {
+    sendJson(response, 500, { error: error.message || "Biblioteket kunne ikke læses." });
+  }
+  return true;
+}
+
 async function serveStatic(response, pathname) {
   let decodedPath;
   try {
@@ -219,12 +410,27 @@ async function serveStatic(response, pathname) {
 }
 
 async function handleApi(request, response, parsedUrl) {
-  const parts = parsedUrl.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
+  let parts;
+  try {
+    parts = parsedUrl.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
+  } catch {
+    sendJson(response, 400, { error: "Ugyldig API-sti." });
+    return true;
+  }
   if (parts[0] !== "api") return false;
   if (request.method === "OPTIONS") {
     response.writeHead(204, corsHeaders());
     response.end();
     return true;
+  }
+  if (parts.length === 2 && parts[1] === "library") {
+    return handleLibraryApi(request, response, parsedUrl, false);
+  }
+  if (parts.length === 3 && parts[1] === "library" && parts[2] === "file") {
+    return handleLibraryApi(request, response, parsedUrl, true);
+  }
+  if (parts.length === 4 && parts[1] === "classes" && parts[3] === "library") {
+    return handleClassLibraryApi(request, response, parts[2]);
   }
   if (parts.length === 2 && parts[1] === "classes" && request.method === "GET") {
     sendJson(response, 200, { classes: await listClassFolders() });
@@ -349,5 +555,5 @@ await fs.mkdir(dataRoot, { recursive: true });
 server.listen(port, host, () => {
   console.log(`Tegne Spil online-server kører på http://localhost:${port}/online`);
   console.log(`Klassemapper: ${dataRoot}`);
-  console.log("Opret fx Klasser\\4A\\Baggrunde og Klasser\\4A\\Spil for at begynde.");
+  console.log("Opret fx Klasser\\4A\\Baner, Klasser\\4A\\Figurer, Klasser\\4A\\Baggrunde og Klasser\\4A\\Spil for at begynde.");
 });

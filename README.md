@@ -11,12 +11,23 @@ For at gemme elevspil på lærerens computer bruges den indbyggede lokale
 klassesserver. Den gemmer kun `.dgm`-spildata og tager ikke imod filer eller
 programmer fra eleverne.
 
-1. Åbn en terminal i denne mappe og kør `npm run start:teacher-server`.
-2. Opret f.eks. `Klasser\4A\Baggrunde`. Læg JPG, PNG eller WebP-baggrunde
-   heri.
+1. Dobbeltklik på **Start klasse server.cmd** i denne mappe. Lad det sorte
+   vindue være åbent, mens eleverne spiller. Du kan stadig bruge
+   `npm run start:teacher-server` i en terminal, hvis du foretrækker det.
+2. Opret én klassemappe pr. klasse, f.eks. `Klasser\4A`. Her kan du lægge
+   fælles billedfiler i `Baner` og `Figurer`, også i undermapper som
+   `Klasser\4A\Baner\Eventyr`. JPG, PNG, WebP og GIF vises for eleverne.
+   `Baggrunde` kan fortsat bruges til den enkle baggrundsvælger.
 3. Elever på samme netværk åbner `http://<lærerens-ip>:8787/online`.
-4. Eleven vælger klasse, skriver navn eller initialer, vælger baggrund og
-   klikker **Gem online**. Spillet ligger derefter i `Klasser\4A\Spil`.
+4. Eleven vælger klasse, skriver navn eller initialer og kan vælge en bane
+   eller figur enten lokalt på sin computer eller fra klassens servermapper.
+   Klik derefter **Gem på server**. Spillet ligger i `Klasser\4A\Spil`.
+
+Knappen **Gem som fil** henter altid en fil til elevens Downloads. Den sender
+aldrig noget til lærermaskinen.
+
+Elever har kun læseadgang til `Baner` og `Figurer` gennem serveren. De kan
+ikke uploade, overskrive eller slette filer i mapperne fra hjemmesiden.
 
 Brug ikke den lokale klassesserver direkte på internettet. Den offentlige
 GitHub-side er selve spillet; klassegemning foregår kun i lærerens lokale

@@ -400,6 +400,26 @@ body.pro-mode .pro-collapse-section > :not(summary) {
   width: 100%;
 }
 
+.online-library {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #b7dedd;
+  border-radius: 7px;
+}
+
+.online-library legend {
+  padding: 0 4px;
+  color: #0c6262;
+  font-weight: 800;
+}
+
+.online-library .hint {
+  margin: 0;
+}
+
 .online-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
