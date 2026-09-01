@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200" role="img" aria-label="Spillebane">
+  <rect width="900" height="1200" fill="#edf7f4"/>
+  <path d="M0 190 C180 90 300 270 470 180 S730 120 900 240 V0 H0Z" fill="#d5eee8"/>
+  <path d="M0 930 C200 840 320 1030 510 930 S760 860 900 980 V1200 H0Z" fill="#dff2e9"/>
+  <circle cx="125" cy="165" r="82" fill="#ffdda3" opacity=".7"/>
+  <circle cx="750" cy="1010" r="120" fill="#c7e4ff" opacity=".75"/>
+  <path d="M82 1110 C230 940 238 730 420 650 S645 420 802 125" fill="none" stroke="#ffffff" stroke-width="70" stroke-linecap="round" opacity=".9"/>
+  <path d="M82 1110 C230 940 238 730 420 650 S645 420 802 125" fill="none" stroke="#9ecfc0" stroke-width="12" stroke-linecap="round" stroke-dasharray="10 24"/>
+  <text x="450" y="90" text-anchor="middle" fill="#0c6262" font-family="Arial, sans-serif" font-size="42" font-weight="700">TegneSpil</text>
+  <text x="450" y="136" text-anchor="middle" fill="#3c6a69" font-family="Arial, sans-serif" font-size="22">Lav din egen bane i redaktøren</text>
+</svg>

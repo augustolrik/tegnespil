@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TegneSpil</title>
+    <link rel="stylesheet" href="src/styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="toolbar" aria-label="Spil værktøjer">
+        <div class="brand toolbar-editor-only">
+          <h1>Tegne Spil</h1>
+          <p id="trackLabel">track_1 med figur_1</p>
+        </div>
+
+        <div class="controls">
+          <div class="segmented" role="group" aria-label="Tilstand">
+            <button id="playModeButton" class="active toolbar-editor-only" type="button">Spil</button>
+            <button id="editModeButton" type="button">Redaktør</button>
+            <button id="proModeButton" class="toolbar-editor-only" type="button">PRO-editor</button>
+          </div>
+
+          <label class="toolbar-editor-only">
+            Bane
+            <input id="trackInput" type="text" value="track_1" spellcheck="false">
+          </label>
+
+          <label class="toolbar-editor-only">
+            Figur
+            <input id="figureInput" type="text" value="figure_1" spellcheck="false">
+          </label>
+
+          <button
+            id="loadTrackButton"
+            class="toolbar-editor-only load-images-button"
+            type="button"
+            title="Vaelg et banefoto fra din computer"
+          >Indlaes bane</button>
+          <button
+            id="loadFigureButton"
+            class="toolbar-editor-only load-images-button"
+            type="button"
+            title="Vaelg et figur-billede fra din computer"
+          >Indlaes figur</button>
+          <input id="trackFileInput" type="file" accept="image/*" hidden>
+          <input id="figureFileInput" type="file" accept="image/*" hidden>
+
+          <div class="music-controls" aria-label="Baggrundsmusik">
+            <button id="loadMusicButton" type="button" title="Vaelg en MP3-fil med baggrundsmusik">Indlaes MP3</button>
+            <input id="musicFileInput" type="file" accept=".mp3" hidden>
+            <button id="musicPlayPauseButton" type="button" disabled>Afspil</button>
+            <button id="musicStopButton" type="button" disabled>Stop</button>
+            <label class="music-volume-label">
+              Lydstyrke
+              <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.5" disabled>
+            </label>
+            <span id="musicStatus" class="music-status" role="status" aria-live="polite">Ingen musik valgt</span>
+            <audio id="backgroundMusic" loop preload="auto"></audio>
+          </div>
+
+          <button id="resetButton" type="button">Nulstil</button>
+          <button id="saveButton" class="toolbar-editor-only" type="button">Gem</button>
+          <button id="createNewButton" type="button">Opret nyt spil</button>
+          <label id="openBundleLabel" class="file-button">
+            Åbn
+            <input id="loadBundleInput" type="file" accept=".dgm,application/json">
+          </label>
+        </div>
+      </section>
+
+      <section class="stage-shell">
+        <canvas id="gameCanvas" width="900" height="1200" aria-label="Drawing game board"></canvas>
+      </section>
+
+      <aside class="panel">
+        <div class="status-grid">
+          <div>
+            <span>Point</span>
+            <strong id="scoreText">0 / 15</strong>
+          </div>
+          <div>
+            <span>Tilstand</span>
+            <strong id="modeText">Spil</strong>
+          </div>
+          <div>
+            <span>Bane</span>
+            <strong id="trackProgressText">1 / 1</strong>
+          </div>
+          <div>
+            <span>Felt</span>
+            <strong id="tileText">Gå</strong>
+          </div>
+        </div>
+
+        <div id="playHelp" class="hint">
+          Brug piletasterne til at flytte. Når en bane er gennemført, går spillet videre til næste bane.
+        </div>
+
+        <section id="onlinePanel" class="online-panel" hidden aria-labelledby="onlinePanelTitle">
+          <div class="online-panel-heading">
+            <h2 id="onlinePanelTitle">Online gemning</h2>
+            <span class="online-badge">Klasseserver</span>
+          </div>
+          <p class="hint">Vælg klasse, elev og baggrund for at hente eller gemme et spil online.</p>
+
+          <div class="online-fields">
+            <label for="onlineClass">
+              Klasse
+              <select id="onlineClass">
+                <option value="">Vælg klasse</option>
+              </select>
+            </label>
+
+            <label for="onlineStudent">
+              Elev
+              <input id="onlineStudent" type="text" placeholder="Skriv elevnavn" autocomplete="name" spellcheck="false">
+            </label>
+
+            <label for="onlineBackground">
+              Baggrund
+              <select id="onlineBackground">
+                <option value="">Vælg baggrund</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="online-actions">
+            <button id="onlineLoadButton" type="button">Hent spil</button>
+            <button id="onlineSaveButton" class="primary" type="button">Gem online</button>
+            <button id="onlineRefreshButton" type="button">Opdatér lister</button>
+          </div>
+
+          <p id="onlineStatus" class="online-status" role="status" aria-live="polite">Ikke tilsluttet</p>
+        </section>
+
+        <div id="editorTools" class="editor-tools" hidden>
+          <details class="pro-collapse-section" open>
+            <summary>Mål for level</summary>
+            <div class="editor-track-row">
+              <label class="track-picker">
+                Arbejd på bane
+                <select id="trackSelect"></select>
+              </label>
+              <button id="addTrackButton" type="button">+ level</button>
+              <label>
+                Mål
+                <select id="objectiveType">
+                  <option value="collectExact">Indsaml præcis point</option>
+                  <option value="monsterModulo">Monster og krystaller</option>
+                  <option value="pointsAndMonsters">Point + monster</option>
+                  <option value="pointsMonstersPortals">Point + monster + portaler</option>
+                  <option value="codeLocks">Kode og spor</option>
+                  <option value="mathZone">Regneområde</option>
+                </select>
+              </label>
+              <label id="targetPointsField">
+                Måltal
+                <input id="targetPoints" type="number" min="-99" max="999" value="15">
+              </label>
+            </div>
+          </details>
+
+          <details class="pro-collapse-section" open>
+            <summary>Fælles indhold</summary>
+            <div class="editor-tool-row">
+              <div class="segmented" role="group" aria-label="Felt værktøj">
+                <button id="walkTool" class="active" type="button">Gå</button>
+                <button id="blockTool" type="button">Blok</button>
+                <button id="startTool" type="button">Start</button>
+              </div>
+            </div>
+
+            <div class="editor-tool-row">
+              <div class="segmented" role="group" aria-label="Indhold værktøj">
+                <button id="itemTool" type="button">Genstand</button>
+                <button id="crystalTool" type="button">Krystal</button>
+                <button id="monsterTool" type="button">Monster</button>
+                <button id="portalTool" type="button">Portal</button>
+                <button id="clueTool" type="button">Spor</button>
+                <button id="lockTool" type="button">Lås</button>
+                <button id="mathAreaTool" type="button">Regneområde</button>
+                <button id="mathEquationTool" type="button">Regnestykke</button>
+              </div>
+            </div>
+
+            <div class="editor-tool-values">
+              <label id="itemValueField">
+                <span id="itemValueLabel">Genstandsværdi</span>
+                <input id="itemValue" type="number" min="-99" max="999" value="1">
+              </label>
+
+              <label id="itemOperationField">
+                Genstandstype
+                <select id="itemOperation">
+                  <option value="add">Plus/minus</option>
+                  <option value="multiply">Gange</option>
+                  <option value="divide">Division</option>
+                </select>
+              </label>
+
+              <label id="monsterValueField">
+                Monstertal
+                <input id="monsterValue" type="number" min="1" max="999" value="35">
+              </label>
+
+              <label id="monsterSpeedField">
+                Monster fart
+                <input id="monsterSpeed" type="number" min="1" max="10" value="1">
+              </label>
+            </div>
+
+            <div id="codeToolValues" class="code-tool-values" hidden>
+              <label>
+                Tekst på spor
+                <textarea id="clueText" rows="4" placeholder="Skriv ledetråden her"></textarea>
+              </label>
+              <label>
+                Billede på spor
+                <input id="clueImageInput" type="file" accept="image/*">
+              </label>
+              <button id="clearClueImageButton" type="button">Fjern billede</button>
+              <label>
+                Kode til lås
+                <input id="lockCode" type="text" value="1234" spellcheck="false">
+              </label>
+            </div>
+
+            <div id="mathToolValues" class="math-tool-values" hidden>
+              <label>
+                Rigtigt svar til området
+                <input id="mathAnswer" type="number" step="any" value="10">
+              </label>
+              <p class="hint">Tegn området med Regneområde, og klik derefter med Regnestykke. Hvert stykke fylder 1 blok som standard, og bredden kan ændres.</p>
+            </div>
+          </details>
+
+          <details class="pro-collapse-section" open>
+            <summary>Gitter og udseende</summary>
+            <div class="grid-scale">
+              <span>Gitter skalering <small>(nye baner starter med 15 × 15)</small></span>
+              <label>
+                Gitter kolonner
+                <input id="gridCols" type="number" min="1" max="128" value="15">
+              </label>
+
+              <label>
+                Gitter rækker
+                <input id="gridRows" type="number" min="1" max="128" value="15">
+              </label>
+
+              <button id="applyGridButton" type="button">Skaler gitter</button>
+            </div>
+
+            <label class="toggle">
+              <input id="showGrid" type="checkbox" checked>
+              Vis gitter
+            </label>
+
+            <div class="appearance-section grid-appearance">
+              <h3>Gitterlinjer</h3>
+              <label>
+                Gitterfarve
+                <input id="gridColor" type="color" value="#e53935">
+              </label>
+              <label>
+                Gitterstyrke
+                <span id="gridOpacityValue">35 %</span>
+                <input id="gridOpacity" type="range" min="0.05" max="1" step="0.05" value="0.35">
+              </label>
+            </div>
+
+            <div class="appearance-section walkable-appearance">
+              <h3>Gå-felter</h3>
+              <label>
+                Gå-felt farve
+                <input id="walkableColor" type="color" value="#0c7c7c">
+              </label>
+              <label>
+                Gå-felt styrke
+                <span id="walkableOpacityValue">22 %</span>
+                <input id="walkableOpacity" type="range" min="0.05" max="1" step="0.05" value="0.22">
+              </label>
+            </div>
+
+            <div class="hint">
+              Brug <strong>Indlaes bane</strong> og <strong>Indlaes figur</strong> hver for sig. Tegn derefter felter, tilfoej genstande, saet start og gem.
+            </div>
+          </details>
+        </div>
+
+        <div id="proEditorTools" class="editor-tools pro-editor-tools" hidden>
+          <p class="hint pro-shared-hint">Mål, objekter, spor, låse og regneopgaver ovenfor er fælles for alle rammer. Brug kun disse PRO-værktøjer til den aktive rammes rute.</p>
+          <section class="pro-fixed-section" aria-labelledby="proFramesHeading">
+            <h3 id="proFramesHeading">Rammer og animation</h3>
+            <div class="pro-frame-row">
+              <label class="track-picker">
+                Aktiv billedramme
+                <select id="proFrameSelect"></select>
+              </label>
+              <button id="proAddFrameButton" type="button">+ tom ramme</button>
+              <label class="file-button pro-file-button">
+                Tilføj billedrammer
+                <input id="proFrameFileInput" type="file" accept="image/*" multiple>
+              </label>
+            </div>
+
+            <div class="pro-frame-row">
+              <label>
+                Rammevarighed (ms)
+                <input id="proFrameDuration" type="number" min="80" max="10000" step="10" value="500">
+              </label>
+              <button id="proDeleteFrameButton" type="button">Slet ramme</button>
+            </div>
+          </section>
+
+          <section class="pro-fixed-section" aria-labelledby="proRouteHeading">
+            <h3 id="proRouteHeading">Rute på denne frame</h3>
+            <div class="editor-tool-row">
+              <div class="segmented" role="group" aria-label="PRO-felt værktøj">
+                <button id="proWalkTool" class="active" type="button">Gå</button>
+                <button id="proLosingTool" type="button">Taber</button>
+                <button id="proBlockTool" type="button">Blok</button>
+              </div>
+            </div>
+
+            <div class="pro-copy-row">
+              <label>
+                Kopiér gåmønster til
+                <select id="proCopyTargets" multiple size="4"></select>
+              </label>
+              <button id="proCopyWalkableButton" type="button">Kopiér gåmønster</button>
+            </div>
+
+            <p class="hint">Hver ramme har egne Gå- og Taber-felter. Tegn videre efter en kopi, eller kopiér igen til andre rammer. Rammen skifter automatisk i spil.</p>
+          </section>
+        </div>
+      </aside>
+
+      <div id="saveDialog" class="modal" hidden>
+        <div class="modal-content">
+          <h2>Gem spil</h2>
+          <p class="hint">Gemmer alle baner, figurer og spilindstillinger som én .dgm-fil.</p>
+          <label>
+            Filnavn
+            <input id="saveFilename" type="text" value="my_game" placeholder="min_bane" spellcheck="false">
+          </label>
+          <div class="modal-buttons">
+            <button id="saveDialogCancel" type="button">Annuller</button>
+            <button id="saveDialogConfirm" type="button">Gem</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="clueDialog" class="modal" hidden>
+        <div class="modal-content clue-modal-content">
+          <h2>Spor</h2>
+          <img id="clueDialogImage" alt="" hidden>
+          <p id="clueDialogText" class="clue-text"></p>
+          <div class="modal-buttons">
+            <button id="clueDialogClose" type="button">Luk</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="clueEditDialog" class="modal" hidden>
+        <div class="modal-content clue-modal-content">
+          <h2>Rediger spor</h2>
+          <img id="clueEditDialogImage" alt="" hidden>
+          <label>
+            Tekst på spor
+            <textarea id="clueEditText" rows="5" placeholder="Skriv ledetråden her"></textarea>
+          </label>
+          <label>
+            Billede på spor
+            <input id="clueEditImageInput" type="file" accept="image/*">
+          </label>
+          <button id="clearClueEditImageButton" type="button">Fjern billede</button>
+          <div class="modal-buttons">
+            <button id="clueEditDialogCancel" type="button">Annuller</button>
+            <button id="clueEditDialogSave" class="primary" type="button">Gem</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="lockDialog" class="modal" hidden>
+        <div class="modal-content">
+          <h2>Åbn lås</h2>
+          <label>
+            Kode
+            <input id="lockAnswer" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <p id="lockError" class="lock-error" hidden>Forkert kode.</p>
+          <div class="modal-buttons">
+            <button id="lockDialogCancel" type="button">Annuller</button>
+            <button id="lockDialogConfirm" type="button">Åbn</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="lockEditDialog" class="modal" hidden>
+        <div class="modal-content">
+          <h2>Rediger lås</h2>
+          <label>
+            Kode
+            <input id="lockEditCode" type="text" autocomplete="off" spellcheck="false">
+          </label>
+          <p id="lockEditError" class="lock-error" hidden>Skriv en kode til låsen først.</p>
+          <div class="modal-buttons">
+            <button id="lockEditDialogCancel" type="button">Annuller</button>
+            <button id="lockEditDialogSave" class="primary" type="button">Gem</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="mathEquationDialog" class="modal" hidden>
+        <div class="modal-content">
+          <h2>Regnestykke i området</h2>
+          <label>
+            Regnestykke
+            <input id="mathEquationText" type="text" placeholder="Fx 2 + 3" spellcheck="false" autocomplete="off">
+          </label>
+          <label>
+            Bredde i blokke
+            <input id="mathEquationWidth" type="number" min="1" max="128" value="1">
+          </label>
+          <p id="mathEquationError" class="lock-error" hidden>Skriv et regnestykke, der kan beregnes.</p>
+          <div class="modal-buttons">
+            <button id="mathEquationDialogCancel" type="button">Annuller</button>
+            <button id="mathEquationDialogSave" class="primary" type="button">Gem</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="mathZoneEditDialog" class="modal" hidden>
+        <div class="modal-content">
+          <h2>Rediger regneområde</h2>
+          <p id="mathZoneEditLabel" class="hint">Område</p>
+          <label>
+            Rigtigt svar til dette område
+            <input id="mathZoneEditAnswer" type="number" step="any" value="10">
+          </label>
+          <p class="hint">Vælg Tilføj regnestykke for at gemme facit og derefter placere en ny opgave i dette område.</p>
+          <div class="modal-buttons">
+            <button id="mathZoneEditCancel" type="button">Annuller</button>
+            <button id="mathZoneEditDelete" type="button">Slet område</button>
+            <button id="mathZoneEditAddEquation" type="button">Tilføj regnestykke</button>
+            <button id="mathZoneEditSave" class="primary" type="button">Gem facit</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="src/app.js"></script>
+  </body>
+</html>

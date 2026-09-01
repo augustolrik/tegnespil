@@ -1,0 +1,9 @@
+{
+  "name": "tegnespil",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TegneSpil i browseren med lokal klassegemning",
+  "scripts": {
+    "start:teacher-server": "node tools/teacher_sync_server.mjs"
+  }
+}

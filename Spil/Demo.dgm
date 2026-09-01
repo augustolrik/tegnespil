@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "id": "tegnespil-demo",
+  "name": "TegneSpil demo",
+  "currentTrackIndex": 0,
+  "tracks": [
+    {
+      "id": "track_1",
+      "label": "Prøvebane",
+      "figureId": "figure_1",
+      "trackImageData": "assets/default-track.svg",
+      "figureImageData": "assets/default-figure.svg",
+      "config": {
+        "version": 1,
+        "id": "track_1",
+        "trackImage": "assets/default-track.svg",
+        "figureImage": "assets/default-figure.svg",
+        "grid": { "cols": 15, "rows": 15, "color": "#e53935", "opacity": 0.28 },
+        "walkableStyle": { "color": "#0c7c7c", "opacity": 0.2 },
+        "objective": { "type": "collectExact", "target": 15 },
+        "monsterSpeed": 1,
+        "start": { "col": 1, "row": 13 },
+        "walkable": ["1,13", "2,13", "3,13", "4,13", "5,13", "5,12", "5,11", "6,11", "7,11", "8,11", "8,10", "8,9", "9,9", "10,9", "11,9", "11,8", "11,7", "10,7", "9,7", "8,7", "7,7", "6,7", "6,6", "6,5", "7,5", "8,5", "9,5", "10,5", "11,5", "12,5", "12,4", "12,3", "12,2"],
+        "items": [
+          { "id": "item_1", "col": 5, "row": 12, "operation": "add", "value": 4 },
+          { "id": "item_2", "col": 8, "row": 9, "operation": "add", "value": 6 },
+          { "id": "item_3", "col": 10, "row": 5, "operation": "add", "value": 5 }
+        ],
+        "crystals": [],
+        "monsters": [],
+        "portals": [],
+        "clues": [],
+        "locks": []
+      }
+    }
+  ]
+}

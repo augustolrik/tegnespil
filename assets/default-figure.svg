@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Spiller">
+  <circle cx="64" cy="64" r="58" fill="#0c7c7c"/>
+  <circle cx="64" cy="64" r="48" fill="#1c9d9d"/>
+  <path d="M64 25 L96 91 L64 79 L32 91 Z" fill="#ffffff"/>
+  <circle cx="64" cy="64" r="8" fill="#f5b14c"/>
+</svg>
