@@ -17,14 +17,21 @@ programmer fra eleverne.
 2. Opret én klassemappe pr. klasse, f.eks. `Klasser\4A`. Her kan du lægge
    fælles billedfiler i `Baner` og `Figurer`, også i undermapper som
    `Klasser\4A\Baner\Eventyr`. JPG, PNG, WebP og GIF vises for eleverne.
-   `Baggrunde` kan fortsat bruges til den enkle baggrundsvælger.
-3. Elever på samme netværk åbner `http://<lærerens-ip>:8787/online`.
+3. Elever på samme netværk åbner `http://PW0FA844:8787/online`.
+   På den offentlige TegneSpil-side kan de i stedet trykke **Spil med
+   klassen**, så de ikke skal skrive adressen selv. Computerens navn bruges
+   i stedet for dens IP-adresse, så linket normalt fortsætter med at virke,
+   når den skifter Wi-Fi.
 4. Eleven vælger klasse, skriver navn eller initialer og kan vælge en bane
    eller figur enten lokalt på sin computer eller fra klassens servermapper.
    Klik derefter **Gem på server**. Spillet ligger i `Klasser\4A\Spil`.
 
 Knappen **Gem som fil** henter altid en fil til elevens Downloads. Den sender
 aldrig noget til lærermaskinen.
+
+Klasseserveren starter med den færdige **Toturial**. Et elevspil åbnes kun
+fra serveren, når eleven vælger klasse/elev og klikker **Hent spil fra
+server**.
 
 Elever har kun læseadgang til `Baner` og `Figurer` gennem serveren. De kan
 ikke uploade, overskrive eller slette filer i mapperne fra hjemmesiden.

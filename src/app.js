@@ -85,7 +85,6 @@ const ui = {
   onlinePanel: document.getElementById("onlinePanel"),
   onlineClass: document.getElementById("onlineClass"),
   onlineStudent: document.getElementById("onlineStudent"),
-  onlineBackground: document.getElementById("onlineBackground"),
   onlineServerTrack: document.getElementById("onlineServerTrack"),
   onlineServerFigure: document.getElementById("onlineServerFigure"),
   onlineApplyTrackButton: document.getElementById("onlineApplyTrackButton"),
@@ -155,8 +154,9 @@ const PUBLIC_TUTORIAL_MODE = onlineQuery.get("tutorial") === "1" || onlineQuery.
   window.location.hostname === "augustolrik.github.io"
   && /^\/tegnespil\/?$/i.test(window.location.pathname)
 );
+const TUTORIAL_START_MODE = PUBLIC_TUTORIAL_MODE || ONLINE_MODE;
 const ONLINE_API_BASE = String(onlineQuery.get("api") || "").trim().replace(/\/+$/, "");
-let onlineState = { classes: [], backgrounds: [], tracks: [], figures: [] };
+let onlineState = { classes: [], tracks: [], figures: [] };
 const GRID_LIMITS = Object.freeze({ min: 1, max: 128 });
 const DEFAULT_GRID = Object.freeze({ cols: 15, rows: 15 });
 // The built-in track is an old 32x42 example. Keep its fallback intact so
@@ -2438,39 +2438,7 @@ async function refreshOnlineClasses() {
       ? previous
       : onlineState.classes[0].id;
   }
-  await refreshOnlineBackgrounds();
   await refreshOnlineLibrary();
-}
-
-async function refreshOnlineBackgrounds() {
-  if (!ONLINE_MODE || !ui.onlineBackground) return;
-  const classId = ui.onlineClass?.value || "";
-  ui.onlineBackground.innerHTML = "";
-  if (!classId) {
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "Opret en klassemappe først";
-    ui.onlineBackground.appendChild(option);
-    ui.onlineBackground.disabled = true;
-    onlineState.backgrounds = [];
-    return;
-  }
-  const payload = await onlineApi(`/api/classes/${encodeURIComponent(classId)}/backgrounds`);
-  onlineState.backgrounds = (Array.isArray(payload.backgrounds) ? payload.backgrounds : []).map((entry) => ({
-    ...entry,
-    url: onlineApiUrl(entry.url),
-  }));
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = onlineState.backgrounds.length ? "Vælg baggrund…" : "Ingen baggrunde endnu";
-  ui.onlineBackground.appendChild(placeholder);
-  onlineState.backgrounds.forEach((entry) => {
-    const option = document.createElement("option");
-    option.value = entry.id;
-    option.textContent = entry.displayName || entry.name;
-    ui.onlineBackground.appendChild(option);
-  });
-  ui.onlineBackground.disabled = onlineState.backgrounds.length === 0;
 }
 
 function populateOnlineLibrarySelect(select, entries, emptyText) {
@@ -2484,7 +2452,7 @@ function populateOnlineLibrarySelect(select, entries, emptyText) {
   entries.forEach((entry) => {
     const option = document.createElement("option");
     option.value = entry.id;
-    option.textContent = entry.name;
+    option.textContent = entry.displayName || entry.name;
     select.appendChild(option);
   });
   select.value = entries.some((entry) => entry.id === previous) ? previous : "";
@@ -2567,31 +2535,6 @@ async function applyOnlineLibraryAsset(kind) {
   }
 }
 
-async function applyOnlineBackground() {
-  if (!ONLINE_MODE || !game || !ui.onlineBackground?.value) return;
-  const background = onlineState.backgrounds.find((entry) => entry.id === ui.onlineBackground.value);
-  if (!background) return;
-  const track = activeTrack();
-  const backgroundId = onlineStudentId(`online_${safeFileId(background.id)}`).slice(0, 48) || "online_track";
-  await commitActiveTrack();
-  currentTrackId = backgroundId;
-  track.id = currentTrackId;
-  track.label = background.name;
-  selectedTrackFileUrl = background.url;
-  track.trackImageData = background.url;
-  config.id = currentTrackId;
-  config.trackImage = background.url;
-  config.figureImage = selectedFigureFileUrl || track.figureImageData || assetPath("Figures", currentFigureId);
-  track.config = JSON.parse(JSON.stringify(config));
-  trackImage.src = background.url;
-  state = newGameState();
-  syncUiFromConfig();
-  await waitForImage(trackImage);
-  saveGameToStorage();
-  resizeCanvas();
-  draw();
-  setOnlineStatus(`Baggrund valgt: ${background.name}`);
-}
 
 function onlineIdentity() {
   const classId = ui.onlineClass?.value || "";
@@ -3525,15 +3468,14 @@ ui.proFrameFileInput.addEventListener("change", addProImageFrames);
 
 if (ui.onlinePanel) {
   ui.onlineClass.addEventListener("change", () => {
-    void Promise.all([refreshOnlineBackgrounds(), refreshOnlineLibrary()]).catch((error) => {
+    void refreshOnlineLibrary().catch((error) => {
       setOnlineStatus(error.message || "Listerne kunne ikke opdateres.", true);
     });
   });
-  ui.onlineBackground.addEventListener("change", () => { void applyOnlineBackground(); });
   ui.onlineApplyTrackButton.addEventListener("click", () => { void applyOnlineLibraryAsset("track"); });
   ui.onlineApplyFigureButton.addEventListener("click", () => { void applyOnlineLibraryAsset("figure"); });
   ui.onlineRefreshButton.addEventListener("click", () => {
-    void Promise.all([refreshOnlineBackgrounds(), refreshOnlineLibrary()]).then(() => {
+    void refreshOnlineLibrary().then(() => {
       setOnlineStatus("Listerne er opdateret.");
     }).catch((error) => {
       setOnlineStatus(error.message || "Listerne kunne ikke opdateres.", true);
@@ -3663,6 +3605,15 @@ function waitForImage(image) {
 }
 
 async function loadGame() {
+  if (TUTORIAL_START_MODE) {
+    try {
+      const response = await fetch("Spil/Toturial.dgm", { cache: "no-store" });
+      if (response.ok) return migrateBundleToGame(await response.json());
+    } catch {
+      // A saved or empty game remains available if the tutorial is unavailable.
+    }
+  }
+
   const stored = localStorage.getItem(GAME_STORAGE_KEY);
   if (stored) {
     try {
@@ -3689,15 +3640,6 @@ async function loadGame() {
       });
     } catch {
       localStorage.removeItem(storageKey("track_1"));
-    }
-  }
-
-  if (PUBLIC_TUTORIAL_MODE) {
-    try {
-      const response = await fetch("Spil/Toturial.dgm", { cache: "no-store" });
-      if (response.ok) return migrateBundleToGame(await response.json());
-    } catch {
-      // The normal empty game remains available if the tutorial is unavailable.
     }
   }
 

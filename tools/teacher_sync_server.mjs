@@ -184,24 +184,6 @@ async function listClassFolders() {
     .sort((left, right) => left.name.localeCompare(right.name, "da", { sensitivity: "base" }));
 }
 
-async function listBackgrounds(classId) {
-  const backgroundsRoot = path.join(dataRoot, classId, "Baggrunde");
-  try {
-    const entries = await fs.readdir(backgroundsRoot, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isFile() && allowedImageExtensions.has(path.extname(entry.name).toLowerCase()))
-      .sort((left, right) => left.name.localeCompare(right.name, "da", { sensitivity: "base" }))
-      .map((entry) => ({
-        id: entry.name,
-        name: entry.name,
-        url: `/api/classes/${encodeURIComponent(classId)}/backgrounds/${encodeURIComponent(entry.name)}`,
-      }));
-  } catch (error) {
-    if (error.code === "ENOENT") return [];
-    throw error;
-  }
-}
-
 async function listLibraryFiles(classId, kind) {
   const libraryKind = libraryKinds.get(kind);
   const libraryRoot = path.resolve(dataRoot, classId, libraryKind.directory);
@@ -449,36 +431,6 @@ async function handleApi(request, response, parsedUrl) {
     sendJson(response, 404, { error: "Klassen findes ikke endnu." });
     return true;
   }
-  if (parts.length === 4 && parts[3] === "backgrounds" && request.method === "GET") {
-    sendJson(response, 200, { backgrounds: await listBackgrounds(classId) });
-    return true;
-  }
-  if (parts[3] === "backgrounds" && parts.length === 5 && request.method === "GET") {
-    const fileName = parts[4];
-    if (fileName.includes("/") || !allowedImageExtensions.has(path.extname(fileName).toLowerCase())) {
-      sendText(response, 400, "Ugyldigt baggrundsbillede.");
-      return true;
-    }
-    const filePath = path.resolve(classRoot, "Baggrunde", fileName);
-    if (!insideRoot(path.resolve(classRoot, "Baggrunde"), filePath)) {
-      sendText(response, 400, "Ugyldig sti.");
-      return true;
-    }
-    try {
-      const details = await fs.stat(filePath);
-      if (!details.isFile()) throw new Error("not-file");
-      response.writeHead(200, {
-        ...corsHeaders(),
-        "Content-Type": mimeTypes.get(path.extname(fileName).toLowerCase()),
-        "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store",
-      });
-      createReadStream(filePath).pipe(response);
-    } catch {
-      sendText(response, 404, "Baggrundsbilledet findes ikke.");
-    }
-    return true;
-  }
   if (parts[3] !== "games") {
     sendJson(response, 404, { error: "API-stien findes ikke." });
     return true;
@@ -555,5 +507,5 @@ await fs.mkdir(dataRoot, { recursive: true });
 server.listen(port, host, () => {
   console.log(`Tegne Spil online-server kører på http://localhost:${port}/online`);
   console.log(`Klassemapper: ${dataRoot}`);
-  console.log("Opret fx Klasser\\4A\\Baner, Klasser\\4A\\Figurer, Klasser\\4A\\Baggrunde og Klasser\\4A\\Spil for at begynde.");
+  console.log("Opret fx Klasser\\4A\\Baner, Klasser\\4A\\Figurer og Klasser\\4A\\Spil for at begynde.");
 });

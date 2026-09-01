@@ -145,6 +145,26 @@ button,
   font-weight: 700;
 }
 
+.class-server-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.class-server-link:hover {
+  border-color: #096767;
+  background: #096767;
+  color: #fff;
+}
+
 button:hover,
 .file-button:hover {
   border-color: var(--accent);
