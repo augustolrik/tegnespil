@@ -147,7 +147,7 @@ const ONLINE_MODE = window.location.protocol !== "file:" && (
   || window.location.hostname === "localhost"
   || window.location.hostname === "127.0.0.1"
 );
-const PUBLIC_DEMO_MODE = onlineQuery.get("demo") === "1" || (
+const PUBLIC_TUTORIAL_MODE = onlineQuery.get("tutorial") === "1" || onlineQuery.get("demo") === "1" || (
   window.location.hostname === "augustolrik.github.io"
   && /^\/tegnespil\/?$/i.test(window.location.pathname)
 );
@@ -3581,12 +3581,12 @@ async function loadGame() {
     }
   }
 
-  if (PUBLIC_DEMO_MODE) {
+  if (PUBLIC_TUTORIAL_MODE) {
     try {
-      const response = await fetch("Spil/Demo.dgm", { cache: "no-store" });
+      const response = await fetch("Spil/Toturial.dgm", { cache: "no-store" });
       if (response.ok) return migrateBundleToGame(await response.json());
     } catch {
-      // The normal empty game remains available if the demo is unavailable.
+      // The normal empty game remains available if the tutorial is unavailable.
     }
   }
 

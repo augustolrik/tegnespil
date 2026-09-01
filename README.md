@@ -2,8 +2,8 @@
 
 Spil online på <https://augustolrik.github.io/tegnespil>.
 
-Den offentlige hjemmeside viser en sikker prøvebane og lader eleverne åbne
-redaktøren og lave deres egne spil direkte i browseren.
+Den offentlige hjemmeside starter med den færdige **Toturial** og lader
+eleverne åbne redaktøren og lave deres egne spil direkte i browseren.
 
 ## Gem elevspil i lærerens mapper
 
