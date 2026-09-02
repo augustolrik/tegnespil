@@ -18,7 +18,7 @@ echo TegneSpil klasseserver starter nu.
 echo Lad dette vindue vaere aabent, mens eleverne spiller.
 echo.
 echo Aabn paa denne computer: http://localhost:8787/online
-echo Elever paa samme netvaerk bruger: http://PW0FA844:8787/online
+echo Elever bruger knappen "Spil med klassen" paa den normale TegneSpil-side.
 echo.
 "%NODE%" tools\teacher_sync_server.mjs
 
