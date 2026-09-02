@@ -144,19 +144,24 @@ const ui = {
 
 const GAME_STORAGE_KEY = "drawing-game:session";
 const onlineQuery = new URLSearchParams(window.location.search);
+const PUBLIC_SITE = window.location.hostname === "augustolrik.github.io"
+  && /^\/tegnespil\/?$/i.test(window.location.pathname);
 const ONLINE_MODE = window.location.protocol !== "file:" && (
   onlineQuery.get("online") === "1"
   || window.location.pathname === "/online"
   || window.location.pathname.endsWith("/online/")
   || window.location.hostname === "localhost"
   || window.location.hostname === "127.0.0.1"
+  || PUBLIC_SITE
 );
 const PUBLIC_TUTORIAL_MODE = onlineQuery.get("tutorial") === "1" || onlineQuery.get("demo") === "1" || (
-  window.location.hostname === "augustolrik.github.io"
-  && /^\/tegnespil\/?$/i.test(window.location.pathname)
+  PUBLIC_SITE
 );
 const TUTORIAL_START_MODE = PUBLIC_TUTORIAL_MODE || ONLINE_MODE;
-const ONLINE_API_BASE = String(onlineQuery.get("api") || "").trim().replace(/\/+$/, "");
+const ONLINE_API_BASE = String(
+  onlineQuery.get("api") || (PUBLIC_SITE ? "https://tegnespil-api.augustolrik.workers.dev" : ""),
+).trim().replace(/\/+$/, "");
+const MAX_ONLINE_BUNDLE_BYTES = 1_800_000;
 let onlineState = { classes: [], tracks: [], figures: [] };
 const GRID_LIMITS = Object.freeze({ min: 1, max: 128 });
 const DEFAULT_GRID = Object.freeze({ cols: 15, rows: 15 });
@@ -2417,6 +2422,28 @@ function rewriteOnlineBundleSources(bundle) {
   return copy;
 }
 
+function prepareOnlineBundle(bundle) {
+  const copy = JSON.parse(JSON.stringify(bundle));
+  let removedLocalImages = 0;
+  const removeDataUrl = (object, key) => {
+    if (typeof object?.[key] === "string" && /^data:/i.test(object[key])) {
+      delete object[key];
+      removedLocalImages += 1;
+    }
+  };
+
+  copy.tracks?.forEach((track) => {
+    if (!track || typeof track !== "object") return;
+    removeDataUrl(track, "trackImageData");
+    removeDataUrl(track, "figureImageData");
+    if (track.config && typeof track.config === "object") {
+      removeDataUrl(track.config, "trackImage");
+      removeDataUrl(track.config, "figureImage");
+    }
+  });
+  return { bundle: copy, removedLocalImages };
+}
+
 async function refreshOnlineClasses() {
   if (!ONLINE_MODE || !ui.onlineClass) return;
   const payload = await onlineApi("/api/classes");
@@ -2553,13 +2580,22 @@ async function saveOnlineGame() {
     const identity = onlineIdentity();
     ui.onlineSaveButton.disabled = true;
     setOnlineStatus("Gemmer spillet…");
-    const bundle = await buildBundle();
+    const prepared = prepareOnlineBundle(await buildBundle());
+    const bundle = prepared.bundle;
+    const serializedBundle = JSON.stringify(bundle);
+    const bundleBytes = new TextEncoder().encode(serializedBundle).byteLength;
+    if (bundleBytes > MAX_ONLINE_BUNDLE_BYTES) {
+      throw new Error("Spillet er for stort til onlinelagring. Gem det som fil, eller opret et nyt spil uden lokale billeder. Billeder kan ikke gemmes online endnu.");
+    }
     const result = await onlineApi(`/api/classes/${encodeURIComponent(identity.classId)}/games/${encodeURIComponent(identity.studentId)}`, {
       method: "PUT",
-      body: JSON.stringify(bundle),
+      body: serializedBundle,
       headers: { "X-TegneSpil-Pin": identity.pin },
     });
-    setOnlineStatus(`Gemt i ${identity.classId} som ${result.file || `${identity.studentId}.dgm`}.`);
+    const imageNote = prepared.removedLocalImages
+      ? " Lokale billeder blev ikke gemt online."
+      : "";
+    setOnlineStatus(`Gemt i ${identity.classId} som ${result.file || `${identity.studentId}.dgm`}.${imageNote}`);
   } catch (error) {
     setOnlineStatus(error.message || "Spillet kunne ikke gemmes.", true);
   } finally {

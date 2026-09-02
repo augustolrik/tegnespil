@@ -1,7 +1,7 @@
 # Project Status
 
 - Purpose: Public TegneSpil browser game with a local teacher portal and a staged cloud-save server.
-- Run/open: Public demo at `https://augustolrik.github.io/tegnespil`; the old local portal is `Start klasse server.cmd` then `http://localhost:8787/online`. The staged cloud Worker is in `cloud-server/` and is not deployed yet.
-- Current state: GitHub Pages is unchanged and still starts with the Toturial. `cloud-server/` contains an isolated Cloudflare Worker + D1 API for 4A–4D, student name/initials plus a 4-digit PIN, strict game validation, CORS allow-list and failed-PIN rate limiting. The online panel remains hidden from the public page until a Cloudflare deployment has been tested. `SECOND_BRAIN.md` now records the required architecture, verification, critic and regression workflow for new games.
-- Blockers: Node.js and a Cloudflare account are required to create the D1 database, set the rate-limit secret and deploy the Worker. Local teacher-server access remains blocked by the school firewall policy.
-- Next useful step: Follow `cloud-server/README.md` to provision and test the Worker, then connect the public page only after tests from a student computer pass.
+- Run/open: Public demo at `https://augustolrik.github.io/tegnespil`; the old local portal is `Start klasse server.cmd` then `http://localhost:8787/online`. The separate cloud API is `https://tegnespil-api.augustolrik.workers.dev`.
+- Current state: GitHub Pages starts with the Tutorial and now shows online save/load through the deployed Cloudflare Worker plus D1 API for 4A-4D. The panel uses student name/initials and a 4-digit PIN. Health, CORS, preflight, first save, wrong PIN and correct open have been tested; the temporary test game was deleted afterwards. A separate computer confirmed the public game works before this connection. `SECOND_BRAIN.md` records the required architecture, verification, critic and regression workflow for new games.
+- Blockers: The public online save/load panel still needs an end-to-end test from a real second student computer after this release. Local teacher-server access remains blocked by the school firewall policy.
+- Next useful step: Test save on one computer and open it on another through the public page; only then add optional shared image storage or other online features.
