@@ -85,6 +85,7 @@ const ui = {
   onlinePanel: document.getElementById("onlinePanel"),
   onlineClass: document.getElementById("onlineClass"),
   onlineStudent: document.getElementById("onlineStudent"),
+  onlinePin: document.getElementById("onlinePin"),
   onlineServerTrack: document.getElementById("onlineServerTrack"),
   onlineServerFigure: document.getElementById("onlineServerFigure"),
   onlineApplyTrackButton: document.getElementById("onlineApplyTrackButton"),
@@ -2539,9 +2540,11 @@ async function applyOnlineLibraryAsset(kind) {
 function onlineIdentity() {
   const classId = ui.onlineClass?.value || "";
   const studentId = onlineStudentId(ui.onlineStudent?.value);
+  const pin = String(ui.onlinePin?.value || "").trim();
   if (!classId) throw new Error("Vælg en klasse først.");
   if (!studentId) throw new Error("Skriv navn eller initialer først.");
-  return { classId, studentId };
+  if (!/^\d{4}$/.test(pin)) throw new Error("Skriv din egen 4-cifrede kode.");
+  return { classId, studentId, pin };
 }
 
 async function saveOnlineGame() {
@@ -2554,6 +2557,7 @@ async function saveOnlineGame() {
     const result = await onlineApi(`/api/classes/${encodeURIComponent(identity.classId)}/games/${encodeURIComponent(identity.studentId)}`, {
       method: "PUT",
       body: JSON.stringify(bundle),
+      headers: { "X-TegneSpil-Pin": identity.pin },
     });
     setOnlineStatus(`Gemt i ${identity.classId} som ${result.file || `${identity.studentId}.dgm`}.`);
   } catch (error) {
@@ -2571,6 +2575,7 @@ async function loadOnlineGame() {
     setOnlineStatus("Åbner gemt spil…");
     const bundle = rewriteOnlineBundleSources(await onlineApi(
       `/api/classes/${encodeURIComponent(identity.classId)}/games/${encodeURIComponent(identity.studentId)}`,
+      { headers: { "X-TegneSpil-Pin": identity.pin } },
     ));
     game = migrateBundleToGame(bundle);
     advancingTrack = false;
@@ -2591,7 +2596,7 @@ async function initOnline() {
   setOnlineStatus("Henter klasser…");
   try {
     await refreshOnlineClasses();
-    setOnlineStatus("Klar. Vælg klasse og skriv navn eller initialer.");
+    setOnlineStatus("Klar. Vælg klasse, navn/initialer og din 4-cifrede kode.");
   } catch (error) {
     setOnlineStatus(error.message || "Serveren kunne ikke kontaktes.", true);
   }

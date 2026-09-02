@@ -1,0 +1,15 @@
+name = "tegnespil-api"
+main = "src/index.js"
+compatibility_date = "2026-09-02"
+
+# Copy this file to wrangler.toml after creating the D1 database.
+[[d1_databases]]
+binding = "DB"
+database_name = "tegnespil"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[vars]
+# This exact public page is the only browser origin allowed to call the API.
+ALLOWED_ORIGINS = "https://augustolrik.github.io,http://localhost:8787,http://127.0.0.1:8787"
+# Set RATE_LIMIT_SECRET with `wrangler secret put RATE_LIMIT_SECRET`.
+# Never put the secret itself in this file or Git.

@@ -102,7 +102,7 @@
             <h2 id="onlinePanelTitle">Online gemning</h2>
             <span class="online-badge">Klasseserver</span>
           </div>
-          <p class="hint">Vælg klasse og elev for at hente eller gemme et spil online. Baner og figurer kan hentes enten lokalt eller fra klassens materialemapper på serveren.</p>
+          <p class="hint">Vælg klasse, skriv dit navn eller dine initialer og din egen 4-cifrede kode. Koden gør, at kun du kan åbne og gemme dit spil – også fra en anden computer.</p>
 
           <div class="online-fields">
             <label for="onlineClass">
@@ -114,7 +114,12 @@
 
             <label for="onlineStudent">
               Elev
-              <input id="onlineStudent" type="text" placeholder="Skriv elevnavn" autocomplete="name" spellcheck="false">
+              <input id="onlineStudent" type="text" placeholder="Skriv navn eller initialer" autocomplete="name" spellcheck="false">
+            </label>
+
+            <label for="onlinePin">
+              Din 4-cifrede kode
+              <input id="onlinePin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" placeholder="Fx 1234" autocomplete="off">
             </label>
 
           </div>

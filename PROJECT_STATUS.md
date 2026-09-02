@@ -1,7 +1,7 @@
 # Project Status
 
-- Purpose: Public TegneSpil browser game with a separate, local teacher server for class folders and student save files.
-- Run/open: Public demo at `https://augustolrik.github.io/tegnespil`; start the local class portal by double-clicking `Start klasse server.cmd`, then open `http://localhost:8787/online`.
-- Current state: The public `main` branch starts with the released Toturial and includes a direct “Spil med klassen” link to the current local teacher-server address. The local class portal also starts with that Toturial, has validated `.dgm` saves, and has read-only, per-class `Baner` and `Figurer` libraries with nested folders. The legacy `Baggrunde` server feature is removed.
-- Blockers: None for the public game. A public GitHub Pages site cannot safely write directly to a teacher's local computer; use the local class portal for saves.
-- Next useful step: Add images or subfolders to the existing `Klasser/4A`–`4D` `Baner` and `Figurer` folders, then test selection from another computer on the same network.
+- Purpose: Public TegneSpil browser game with a local teacher portal and a staged cloud-save server.
+- Run/open: Public demo at `https://augustolrik.github.io/tegnespil`; the old local portal is `Start klasse server.cmd` then `http://localhost:8787/online`. The staged cloud Worker is in `cloud-server/` and is not deployed yet.
+- Current state: GitHub Pages is unchanged and still starts with the Toturial. `cloud-server/` contains an isolated Cloudflare Worker + D1 API for 4A–4D, student name/initials plus a 4-digit PIN, strict game validation, CORS allow-list and failed-PIN rate limiting. The online panel remains hidden from the public page until a Cloudflare deployment has been tested.
+- Blockers: Node.js and a Cloudflare account are required to create the D1 database, set the rate-limit secret and deploy the Worker. Local teacher-server access remains blocked by the school firewall policy.
+- Next useful step: Follow `cloud-server/README.md` to provision and test the Worker, then connect the public page only after tests from a student computer pass.
