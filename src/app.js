@@ -46,6 +46,7 @@ const ui = {
   proEditorTools: document.getElementById("proEditorTools"),
   trackSelect: document.getElementById("trackSelect"),
   addTrackButton: document.getElementById("addTrackButton"),
+  deleteTrackButton: document.getElementById("deleteTrackButton"),
   walkTool: document.getElementById("walkTool"),
   blockTool: document.getElementById("blockTool"),
   itemTool: document.getElementById("itemTool"),
@@ -1131,6 +1132,10 @@ function syncTrackSelect() {
     ui.trackSelect.appendChild(option);
   });
   ui.trackSelect.value = String(game.currentTrackIndex);
+  ui.deleteTrackButton.disabled = game.tracks.length <= 1;
+  ui.deleteTrackButton.title = game.tracks.length <= 1
+    ? "Et spil skal have mindst ét level"
+    : "Slet det valgte level";
 }
 
 function syncTrackProgress() {
@@ -1206,9 +1211,9 @@ function applyTrackImages(track) {
   }
 }
 
-async function activateTrack(index, { resetPlay = true } = {}) {
+async function activateTrack(index, { resetPlay = true, commitCurrent = true } = {}) {
   if (index < 0 || index >= game.tracks.length) return false;
-  if (mode === "editor" || mode === "pro") await commitActiveTrack();
+  if (commitCurrent && (mode === "editor" || mode === "pro")) await commitActiveTrack();
   stopProAnimation();
   activeProFrameIndex = 0;
 
@@ -1242,7 +1247,41 @@ async function addTrack() {
   const trackId = `track_${trackNumber}_${Date.now()}`;
   game.tracks.push(createTrackEntry(trackId, `Bane ${trackNumber}`, currentFigureId, false));
   await activateTrack(game.tracks.length - 1);
-  setTool("walk");
+  if (mode === "pro") {
+    ensureProConfig();
+    setProTool(proEditTool);
+    syncProEditorUi();
+  } else {
+    setTool("walk");
+  }
+}
+
+async function deleteActiveTrack() {
+  if (game.tracks.length <= 1) {
+    alert("Et spil skal have mindst ét level.");
+    return;
+  }
+
+  const deletedTrack = activeTrack();
+  const deletedLabel = deletedTrack.label || `Bane ${game.currentTrackIndex + 1}`;
+  if (!confirm(`Slet level \"${deletedLabel}\"? Dette kan ikke fortrydes.`)) return;
+
+  await commitActiveTrack();
+  const deletedIndex = game.currentTrackIndex;
+  game.tracks.splice(deletedIndex, 1);
+  const nextIndex = Math.min(deletedIndex, game.tracks.length - 1);
+  await activateTrack(nextIndex, { commitCurrent: false });
+
+  if (mode === "pro") {
+    ensureProConfig();
+    setProTool(proEditTool);
+    syncProEditorUi();
+  } else if (mode === "editor") {
+    setTool(editTool);
+  }
+  state.message = `Level \"${deletedLabel}\" er slettet.`;
+  saveGameToStorage();
+  draw();
 }
 
 async function goToNextTrack() {
@@ -3472,6 +3511,7 @@ ui.trackSelect.addEventListener("change", async () => {
   }
 });
 ui.addTrackButton.addEventListener("click", () => addTrack());
+ui.deleteTrackButton.addEventListener("click", () => { void deleteActiveTrack(); });
 ui.showGrid.addEventListener("change", draw);
 ui.gridColor.addEventListener("input", () => {
   if (!config) return;
@@ -3499,16 +3539,21 @@ ui.walkableOpacity.addEventListener("input", () => {
   persistActiveConfig();
   draw();
 });
-ui.resetButton.addEventListener("click", () => {
+function resetCurrentLevel() {
   ui.clueDialog.hidden = true;
   closeClueEditDialog();
   closeLockDialog();
   closeLockEditDialog();
   closeMathEquationDialog();
   closeMathZoneEditDialog();
+  const restartProAnimation = isProPlayback();
+  if (restartProAnimation) stopProAnimation();
   state = newGameState();
   draw();
-});
+  if (restartProAnimation) startProAnimation();
+}
+
+ui.resetButton.addEventListener("click", resetCurrentLevel);
 ui.saveButton.addEventListener("click", saveBundle);
 ui.saveDialogCancel.addEventListener("click", () => {
   ui.saveDialog.hidden = true;

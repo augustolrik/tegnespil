@@ -150,6 +150,17 @@ button:hover,
   border-color: var(--accent);
 }
 
+.danger-button {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 38%, var(--line));
+}
+
+.danger-button:hover {
+  color: #fff;
+  border-color: var(--bad);
+  background: var(--bad);
+}
+
 .segmented {
   display: inline-flex;
   border: 1px solid var(--line);
