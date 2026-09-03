@@ -8,3 +8,4 @@
 - Interface note: PhotoDrop has been removed from the image-import menu. Teachers can add local pictures to each class folder and use the class library when those folders are synchronised; direct web import remains available.
 - Default tutorial: A browser without an existing draft opens `Spil/Toturial_ny.dgm`. Its 17 unique images have been migrated to permanent R2 references, leaving the committed tutorial bundle at about 50 KB while preserving all seven levels.
 - Server games: The online panel lists saved games for the selected class. Selecting one fills in the student name, while the existing four-digit PIN remains required before the game content can be opened. The same listing route is available on the local teacher server.
+- Testing: `TEST_CHECKLIST.md` contains the manual acceptance test for gameplay, editor, Pro editor, pictures, class library, online save/load, permanent cloud assets and developer checks.

@@ -2,6 +2,8 @@
 
 Spil online på <https://augustolrik.github.io/tegnespil>.
 
+Se [testchecklisten](TEST_CHECKLIST.md) før en udgivelse eller når alle funktioner skal gennemprøves.
+
 Den offentlige hjemmeside starter med den færdige **Toturial** og lader
 eleverne åbne redaktøren og lave deres egne spil direkte i browseren.
 
