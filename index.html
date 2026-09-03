@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TegneSpil</title>
-    <link rel="stylesheet" href="src/styles.css?v=gameplay-fixes-20260903">
+    <link rel="stylesheet" href="src/styles.css?v=music-panel-20260903">
   </head>
   <body>
     <main class="app">
@@ -57,13 +57,18 @@
           <div class="music-controls" aria-label="Baggrundsmusik">
             <button id="loadMusicButton" type="button" title="Vaelg en MP3-fil med baggrundsmusik">Indlaes MP3</button>
             <input id="musicFileInput" type="file" accept=".mp3" hidden>
-            <button id="musicPlayPauseButton" type="button" disabled>Afspil</button>
-            <button id="musicStopButton" type="button" disabled>Stop</button>
-            <label class="music-volume-label">
-              Lydstyrke
-              <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.5" disabled>
-            </label>
-            <span id="musicStatus" class="music-status" role="status" aria-live="polite">Ingen musik valgt</span>
+            <details id="musicOptions" class="music-options" hidden>
+              <summary><span id="musicStatus" class="music-status" role="status" aria-live="polite">Musik</span></summary>
+              <div class="music-options-panel">
+                <button id="musicChangeButton" type="button">Skift MP3</button>
+                <button id="musicPlayPauseButton" type="button" disabled>Afspil</button>
+                <button id="musicStopButton" type="button" disabled>Stop</button>
+                <label class="music-volume-label">
+                  Lydstyrke
+                  <input id="musicVolume" type="range" min="0" max="1" step="0.05" value="0.5" disabled>
+                </label>
+              </div>
+            </details>
             <audio id="backgroundMusic" loop preload="auto"></audio>
           </div>
 
@@ -501,6 +506,6 @@
     </main>
 
     <script src="src/asset-pipeline.js?v=cloud-assets-20260903"></script>
-    <script src="src/app.js?v=objective-types-20260903"></script>
+    <script src="src/app.js?v=music-panel-20260903"></script>
   </body>
 </html>

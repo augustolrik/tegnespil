@@ -10,6 +10,7 @@ const classesRoot = path.join(root, "Klasser");
 const workerUrl = String(process.env.TEGNESPIL_API_URL || "https://tegnespil-api.augustolrik.workers.dev").replace(/\/+$/, "");
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
 const mimeByExtension = new Map([[".jpg", "image/jpeg"], [".jpeg", "image/jpeg"], [".png", "image/png"], [".webp", "image/webp"], [".gif", "image/gif"]]);
+const forceFullSync = process.argv.includes("--all");
 
 async function filesIn(directory) {
   let entries;
@@ -29,6 +30,20 @@ function runWrangler(args) {
 
 function sql(value) { return `'${String(value).replaceAll("'", "''")}'`; }
 
+async function registeredAssetNames(classId) {
+  const response = await fetch(`${workerUrl}/api/classes/${encodeURIComponent(classId)}/library`, {
+    headers: { Origin: "https://augustolrik.github.io" },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !Array.isArray(payload.tracks) || !Array.isArray(payload.figures)) {
+    throw new Error(`${classId}: klassebiblioteket kunne ikke læses før synkronisering.`);
+  }
+  return new Set([
+    ...payload.tracks.map((asset) => `track/${asset.name}`),
+    ...payload.figures.map((asset) => `figure/${asset.name}`),
+  ]);
+}
+
 async function uploadOne(classId, kind, folder, entry) {
   const filePath = path.join(classesRoot, classId, folder, entry.name);
   const bytes = await readFile(filePath);
@@ -47,16 +62,24 @@ async function uploadOne(classId, kind, folder, entry) {
 }
 
 const classEntries = await readdir(classesRoot, { withFileTypes: true });
-let total = 0;
+let uploaded = 0;
+let skipped = 0;
 for (const classEntry of classEntries.filter((entry) => entry.isDirectory() && /^[A-Za-z0-9_-]+$/.test(entry.name))) {
   const classId = classEntry.name;
+  const existing = forceFullSync ? new Set() : await registeredAssetNames(classId);
   for (const [folder, kind] of [["Baner", "track"], ["Figurer", "figure"], ["Figure", "figure"]]) {
     for (const entry of await filesIn(path.join(classesRoot, classId, folder))) {
+      const assetKey = `${kind}/${entry.name}`;
+      if (existing.has(assetKey)) {
+        skipped += 1;
+        continue;
+      }
       const details = await stat(path.join(classesRoot, classId, folder, entry.name));
       if (details.size > 12 * 1024 * 1024) throw new Error(`${classId}/${folder}/${entry.name} er større end 12 MB.`);
       await uploadOne(classId, kind, folder, entry);
-      total += 1;
+      existing.add(assetKey);
+      uploaded += 1;
     }
   }
 }
-console.log(`Færdig: ${total} klassebilleder er lagt i R2 og registreret i D1.`);
+console.log(`Færdig: ${uploaded} nye klassebilleder er lagt i R2 og registreret i D1. ${skipped} eksisterende billeder blev sprunget over.`);

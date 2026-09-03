@@ -204,14 +204,13 @@ test("web import refuses local addresses, credentials and unsafe schemes", () =>
   }
 });
 
-test("origin rejection and atomic hourly import quota", async () => {
+test("origin rejection does not block allowed image imports", async () => {
   const env = environment();
   const bad = apiRequest("/api/assets", { method: "POST", headers: { Origin: "https://evil.example" }, body: PNG });
   assert.equal((await worker.fetch(bad, env)).status, 403);
   const first = await worker.fetch(apiRequest("/api/assets", { method: "POST", body: PNG }), env);
   assert.equal(first.status, 201);
-  env.DB.db.exec("UPDATE asset_upload_limits SET attempts = 120");
-  assert.equal((await worker.fetch(apiRequest("/api/assets", { method: "POST", body: PNG }), env)).status, 429);
+  assert.equal((await worker.fetch(apiRequest("/api/assets", { method: "POST", body: PNG }), env)).status, 201);
 });
 
 test("deduplicates imports without overwriting original metadata", async () => {

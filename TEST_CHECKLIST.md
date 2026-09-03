@@ -47,7 +47,8 @@ Brug listen ved en ny udgivelse. Sæt kryds, når hvert punkt er prøvet.
 - [ ] Gentag webimport som figur, billede til spor og Pro-ramme.
 - [ ] Kontroller, at PhotoDrop ikke vises som et valg i importmenuen.
 - [ ] Forsøg at importere en ugyldig adresse eller en ikke-billedfil. Spillet skal vise en fejl og beholde det gamle billede.
-- [ ] Vælg **Indlæs MP3**, afspil musikken, justér lydstyrken og brug Stop.
+- [ ] Kontroller, at kun **Indlæs MP3** vises, før en musikfil vælges.
+- [ ] Vælg **Indlæs MP3**. Den kompakte musikknap skal åbne med filnavn, Skift MP3, Afspil/Pause, Stop og lydstyrke.
 
 ## PRO-editor og animation
 

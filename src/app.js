@@ -25,6 +25,8 @@ const ui = {
   figureFileInput: document.getElementById("figureFileInput"),
   loadMusicButton: document.getElementById("loadMusicButton"),
   musicFileInput: document.getElementById("musicFileInput"),
+  musicOptions: document.getElementById("musicOptions"),
+  musicChangeButton: document.getElementById("musicChangeButton"),
   musicPlayPauseButton: document.getElementById("musicPlayPauseButton"),
   musicStopButton: document.getElementById("musicStopButton"),
   musicVolume: document.getElementById("musicVolume"),
@@ -470,20 +472,25 @@ function revokeBlobUrl(url) {
 
 function updateBackgroundMusicUi() {
   const hasMusic = Boolean(backgroundMusicUrl);
+  ui.loadMusicButton.hidden = hasMusic;
+  ui.musicOptions.hidden = !hasMusic;
+  if (!hasMusic) ui.musicOptions.open = false;
   ui.musicPlayPauseButton.disabled = !hasMusic;
   ui.musicStopButton.disabled = !hasMusic;
   ui.musicVolume.disabled = !hasMusic;
   ui.musicPlayPauseButton.textContent = ui.backgroundMusic.paused ? "Afspil" : "Pause";
 
+  let playbackStatus;
   if (backgroundMusicStatusOverride) {
-    ui.musicStatus.textContent = backgroundMusicStatusOverride;
+    playbackStatus = backgroundMusicStatusOverride;
   } else if (!hasMusic) {
-    ui.musicStatus.textContent = "Ingen musik valgt";
+    playbackStatus = "Ingen musik valgt";
   } else if (ui.backgroundMusic.error) {
-    ui.musicStatus.textContent = "MP3 kunne ikke afspilles";
+    playbackStatus = "MP3 kunne ikke afspilles";
   } else {
-    ui.musicStatus.textContent = ui.backgroundMusic.paused ? "På pause" : "Afspiller";
+    playbackStatus = ui.backgroundMusic.paused ? "På pause" : "Afspiller";
   }
+  ui.musicStatus.textContent = hasMusic ? `Musik: ${backgroundMusicFileName} · ${playbackStatus}` : playbackStatus;
   ui.musicStatus.title = backgroundMusicFileName || ui.musicStatus.textContent;
 }
 
@@ -547,6 +554,7 @@ async function handleMusicFileSelected(event) {
   ui.backgroundMusic.volume = Number(ui.musicVolume.value || 0.5);
   ui.backgroundMusic.load();
   revokeBlobUrl(oldUrl);
+  ui.musicOptions.open = true;
   setBackgroundMusicStatus("Indlæser musik…");
   await playBackgroundMusic();
 }
@@ -3474,6 +3482,7 @@ ui.loadFigureButton.addEventListener("click", () => {
   ui.figureFileInput.click();
 });
 ui.loadMusicButton.addEventListener("click", () => ui.musicFileInput.click());
+ui.musicChangeButton.addEventListener("click", () => ui.musicFileInput.click());
 ui.musicFileInput.addEventListener("change", handleMusicFileSelected);
 ui.musicPlayPauseButton.addEventListener("click", () => {
   if (ui.backgroundMusic.paused) {

@@ -210,13 +210,6 @@ export default {
     if (url.pathname === "/api/assets" && request.method === "POST") {
       if (!cors(request, env)["Access-Control-Allow-Origin"]) return json(request, env, 403, { error: "Billedimport er kun tilladt fra TegneSpil." });
       try {
-        const tag = await clientTag(request, env);
-        const window = Math.floor(Date.now() / 3600000);
-        // Atomic reservation prevents parallel requests from bypassing the cap.
-        const quota = await env.DB.prepare(
-          "INSERT INTO asset_upload_limits (client_tag, window, attempts) VALUES (?, ?, 1) ON CONFLICT(client_tag) DO UPDATE SET window = excluded.window, attempts = CASE WHEN window = excluded.window THEN attempts + 1 ELSE 1 END RETURNING attempts",
-        ).bind(tag, window).first();
-        if (quota.attempts > 120) return json(request, env, 429, { error: "For mange billedimporter. Vent en time og prøv igen." });
         return json(request, env, 201, await importAsset(request, env));
       } catch (error) {
         return json(request, env, 400, { error: error.message || "Billedet kunne ikke importeres." });

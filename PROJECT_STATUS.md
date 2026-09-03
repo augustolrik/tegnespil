@@ -10,3 +10,6 @@
 - Default tutorial: A browser without an existing draft opens `Spil/Toturial_ny.dgm`. Its 17 unique images have been migrated to permanent R2 references, leaving the committed tutorial bundle at about 50 KB while preserving all seven levels.
 - Server games: The online panel lists saved games for the selected class. Selecting one fills in the student name, while the existing four-digit PIN remains required before the game content can be opened. The same listing route is available on the local teacher server.
 - Testing: `TEST_CHECKLIST.md` contains the manual acceptance test for gameplay, editor, Pro editor, pictures, class library, online save/load, permanent cloud assets and developer checks.
+- Class-library sync: `cloud-server` has a fast default sync that reads the online library first and uploads only new class-image filenames. Use the `:all` script variant only when replacing an image while keeping its filename.
+- Image imports: The server no longer limits image imports per hour. Images are still validated, processed to WebP, deduplicated and stopped at the 9.6 GB R2 storage ceiling.
+- Music controls: The toolbar shows only `Indlæs MP3` until a music file is chosen. The selected file then appears in a compact fold-out control containing change, play, stop and volume controls.

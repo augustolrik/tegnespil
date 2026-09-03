@@ -22,7 +22,7 @@ Denne mappe er den nye, separate server til online gemning. Den ændrer **ikke**
 6. Kør `npx wrangler d1 execute tegnespil --remote --file=schema.sql`. For den eksisterende database skal du også én gang køre `npx wrangler d1 execute tegnespil --remote --file=migrations/0002_assets.sql`.
 7. Kør `npx wrangler secret put RATE_LIMIT_SECRET`, og vælg en lang tilfældig hemmelighed. Den må aldrig ind i Git eller sendes til elever.
 8. Kør `npm run deploy`. Gem Worker-URL'en, men ændr ikke den offentlige GitHub-side endnu.
-9. Kør `npm run upload:class-assets` for at tage eksisterende billeder fra `Klasser/<klasse>/Baner`, `Figurer` og den ældre `Figure`-mappe med til R2. Scriptet registrerer dem i klassens online-bibliotek.
+9. Kør `npm run upload:class-assets` for hurtigt at tage kun nye billeder fra `Klasser/<klasse>/Baner`, `Figurer` og den ældre `Figure`-mappe med til R2. Scriptet registrerer dem i klassens online-bibliotek og springer kendte filnavne over. Hvis et billede med et eksisterende filnavn er blevet udskiftet, bruges `npm run upload:class-assets:all` for at registrere alle filer igen.
 10. Test `/api/health`, klasseliste, upload af JPG/PNG/WebP, webimport, første gemning, forkert PIN, rigtig PIN og spil på en anden computer efter at den oprindelige webadresse er utilgængelig.
 
 Når alt virker, kobles den offentlige side på med én bevidst ændring af dens API-adresse. Den nuværende side forbliver tilgængelig hele tiden.

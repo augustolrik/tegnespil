@@ -6,6 +6,7 @@
     "test": "node --test",
     "check": "node --check src/index.js && node --check src/validation.js",
     "upload:class-assets": "node tools/upload_class_assets.mjs",
+    "upload:class-assets:all": "node tools/upload_class_assets.mjs --all",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
