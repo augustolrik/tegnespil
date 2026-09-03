@@ -3839,7 +3839,7 @@ async function loadGame() {
 
   if (TUTORIAL_START_MODE) {
     try {
-      const response = await fetch("Spil/Toturial.dgm", { cache: "no-store" });
+      const response = await fetch("Spil/Toturial_ny.dgm", { cache: "no-store" });
       if (response.ok) return migrateBundleToGame(await response.json());
     } catch {
       // A saved or empty game remains available if the tutorial is unavailable.
