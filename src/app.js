@@ -190,8 +190,6 @@ const DEFAULT_GRID = Object.freeze({ cols: 15, rows: 15 });
 const LEGACY_SEED_GRID = Object.freeze({ cols: 32, rows: 42 });
 const DEFAULT_GRID_STYLE = Object.freeze({ color: "#e53935", opacity: 0.35 });
 const DEFAULT_WALKABLE_STYLE = Object.freeze({ color: "#0c7c7c", opacity: 0.22 });
-const LEVEL_OBJECTIVE_TYPE = "pointsMonstersPortals";
-
 let mode = "play";
 let editTool = "walk";
 let proEditTool = "walk";
@@ -578,7 +576,7 @@ function buildDefaultConfig(trackId = currentTrackId, figureId = currentFigureId
     figureImage: assetPath("Figures", figureId),
     grid: { ...defaultGrid, ...DEFAULT_GRID_STYLE },
     walkableStyle: { ...DEFAULT_WALKABLE_STYLE },
-    objective: { type: LEVEL_OBJECTIVE_TYPE, target: 15 },
+    objective: { type: "collectExact", target: 15 },
     monsterSpeed: 1,
     start: isSeedTrack(trackId) ? { col: 4, row: 9 } : { col: 7, row: 7 },
     walkable: [],
@@ -906,13 +904,7 @@ function normalizeConfig(nextConfig, trackId = currentTrackId, figureId = curren
       color: walkableColor,
       opacity: walkableOpacity,
     },
-    // Older games may contain retired objective types. Every level now uses
-    // the shared point, monster and portal ruleset.
-    objective: {
-      ...fallback.objective,
-      ...(source.objective || {}),
-      type: LEVEL_OBJECTIVE_TYPE,
-    },
+    objective: { ...fallback.objective, ...(source.objective || {}) },
     monsterSpeed: Math.max(1, Math.min(10, Number(source.monsterSpeed || fallback.monsterSpeed || 1))),
     start: { ...fallback.start, ...(source.start || {}) },
     walkable: Array.from(new Set(source.walkable || fallback.walkable)),
