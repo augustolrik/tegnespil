@@ -83,6 +83,9 @@ const ui = {
   saveDialogCancel: document.getElementById("saveDialogCancel"),
   saveDialogConfirm: document.getElementById("saveDialogConfirm"),
   onlinePanel: document.getElementById("onlinePanel"),
+  onlineToggleButton: document.getElementById("onlineToggleButton"),
+  onlineToggleText: document.getElementById("onlineToggleText"),
+  onlinePanelContent: document.getElementById("onlinePanelContent"),
   onlineClass: document.getElementById("onlineClass"),
   onlineStudent: document.getElementById("onlineStudent"),
   onlinePin: document.getElementById("onlinePin"),
@@ -143,6 +146,10 @@ const ui = {
 };
 
 const GAME_STORAGE_KEY = "drawing-game:session";
+const GAME_STORAGE_SAVED_AT_KEY = "drawing-game:session-saved-at";
+const DRAFT_DATABASE_NAME = "tegnespil-drafts";
+const DRAFT_STORE_NAME = "games";
+const DRAFT_RECORD_KEY = "current";
 const onlineQuery = new URLSearchParams(window.location.search);
 const PUBLIC_SITE = window.location.hostname === "augustolrik.github.io"
   && /^\/tegnespil\/?$/i.test(window.location.pathname);
@@ -162,6 +169,10 @@ const ONLINE_API_BASE = String(
   onlineQuery.get("api") || (PUBLIC_SITE ? "https://tegnespil-api.augustolrik.workers.dev" : ""),
 ).trim().replace(/\/+$/, "");
 const MAX_ONLINE_BUNDLE_BYTES = 1_800_000;
+// The teacher server runs on the school's computer and stores game files in
+// its local Klasser folder. It deliberately accepts embedded JPEG/PNG/WebP
+// images, whereas the public Cloudflare service does not have image storage.
+const MAX_LOCAL_SERVER_BUNDLE_BYTES = 64 * 1024 * 1024;
 let onlineState = { classes: [], tracks: [], figures: [] };
 const GRID_LIMITS = Object.freeze({ min: 1, max: 128 });
 const DEFAULT_GRID = Object.freeze({ cols: 15, rows: 15 });
@@ -274,13 +285,77 @@ function migrateBundleToGame(bundle) {
 }
 
 function saveGameToStorage() {
+  if (!game) return;
+  const serialized = JSON.stringify(game);
+  const savedAt = Date.now();
   try {
-    localStorage.setItem(GAME_STORAGE_KEY, JSON.stringify(game));
-  } catch (error) {
-    if (error?.name !== "QuotaExceededError") throw error;
-    // Bundles with several embedded images can be larger than localStorage.
-    // Keep the loaded game playable in memory without replacing the prior session.
+    localStorage.setItem(GAME_STORAGE_KEY, serialized);
+    localStorage.setItem(GAME_STORAGE_SAVED_AT_KEY, String(savedAt));
+  } catch {
+    // Large images do not fit in localStorage. IndexedDB below is the durable
+    // local draft store for those games.
   }
+  void saveGameDraft(serialized, savedAt);
+}
+
+function openDraftDatabase() {
+  if (!("indexedDB" in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let request;
+    try {
+      request = window.indexedDB.open(DRAFT_DATABASE_NAME, 1);
+    } catch {
+      resolve(null);
+      return;
+    }
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(DRAFT_STORE_NAME)) {
+        request.result.createObjectStore(DRAFT_STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+function databaseRequest(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveGameDraft(serialized, savedAt) {
+  const database = await openDraftDatabase();
+  if (!database) return;
+  try {
+    const transaction = database.transaction(DRAFT_STORE_NAME, "readwrite");
+    await databaseRequest(transaction.objectStore(DRAFT_STORE_NAME).put({ serialized, savedAt }, DRAFT_RECORD_KEY));
+  } catch {
+    // The game stays usable even if this browser disallows local draft storage.
+  } finally {
+    database.close();
+  }
+}
+
+async function loadGameDraft() {
+  const localSerialized = localStorage.getItem(GAME_STORAGE_KEY);
+  const localSavedAt = Number(localStorage.getItem(GAME_STORAGE_SAVED_AT_KEY)) || 0;
+  const database = await openDraftDatabase();
+  if (database) {
+    try {
+      const transaction = database.transaction(DRAFT_STORE_NAME, "readonly");
+      const record = await databaseRequest(transaction.objectStore(DRAFT_STORE_NAME).get(DRAFT_RECORD_KEY));
+      if (typeof record?.serialized === "string" && Number(record.savedAt) >= localSavedAt) {
+        return record.serialized;
+      }
+    } catch {
+      // Fall through to the small localStorage copy below.
+    } finally {
+      database.close();
+    }
+  }
+  return localSerialized;
 }
 
 function storageKey(trackId = currentTrackId) {
@@ -2580,12 +2655,20 @@ async function saveOnlineGame() {
     const identity = onlineIdentity();
     ui.onlineSaveButton.disabled = true;
     setOnlineStatus("Gemmer spillet…");
-    const prepared = prepareOnlineBundle(await buildBundle());
+    const originalBundle = await buildBundle();
+    // Keep images with games saved to the local class server. The public API
+    // has no shared image store yet, so it must continue to reject data URLs.
+    const prepared = ONLINE_API_BASE
+      ? prepareOnlineBundle(originalBundle)
+      : { bundle: originalBundle, removedLocalImages: 0 };
     const bundle = prepared.bundle;
     const serializedBundle = JSON.stringify(bundle);
     const bundleBytes = new TextEncoder().encode(serializedBundle).byteLength;
-    if (bundleBytes > MAX_ONLINE_BUNDLE_BYTES) {
-      throw new Error("Spillet er for stort til onlinelagring. Gem det som fil, eller opret et nyt spil uden lokale billeder. Billeder kan ikke gemmes online endnu.");
+    const maxBundleBytes = ONLINE_API_BASE ? MAX_ONLINE_BUNDLE_BYTES : MAX_LOCAL_SERVER_BUNDLE_BYTES;
+    if (bundleBytes > maxBundleBytes) {
+      throw new Error(ONLINE_API_BASE
+        ? "Spillet er for stort til onlinelagring. Gem det som fil, eller opret et nyt spil uden lokale billeder. Billeder kan ikke gemmes online endnu."
+        : "Spillet er for stort til klasseserveren. Brug mindre billeder eller gem som fil.");
     }
     const result = await onlineApi(`/api/classes/${encodeURIComponent(identity.classId)}/games/${encodeURIComponent(identity.studentId)}`, {
       method: "PUT",
@@ -2709,7 +2792,7 @@ function setAssetSources() {
   }
 }
 
-async function loadFromSelectedFiles({ reloadTrackConfig = true } = {}) {
+async function loadFromSelectedFiles() {
   if (mode === "play") return;
   setAssetSources();
   await Promise.all([waitForImage(trackImage), waitForImage(figureImage)]);
@@ -2727,16 +2810,14 @@ async function loadFromSelectedFiles({ reloadTrackConfig = true } = {}) {
   }
   activeTrack().id = currentTrackId;
   activeTrack().figureId = currentFigureId;
-  if (reloadTrackConfig) {
-    config = normalizeConfig(await loadConfig(), currentTrackId, currentFigureId);
-  }
+  // Importing a background or a figure must never replace the work already
+  // made in the editor. Only the asset references are changed below.
   config.id = currentTrackId;
   config.trackImage = selectedTrackFileUrl || assetPath("Tracks", currentTrackId);
   config.figureImage = selectedFigureFileUrl || assetPath("Figures", currentFigureId);
   activeTrack().config = JSON.parse(JSON.stringify(config));
   activeTrack().trackImageData = selectedTrackFileUrl;
   activeTrack().figureImageData = selectedFigureFileUrl;
-  if (reloadTrackConfig) state = newGameState();
   syncUiFromConfig();
   saveGameToStorage();
   setMode("editor");
@@ -2761,7 +2842,7 @@ async function handleTrackFileSelected(event) {
   currentTrackId = file.name;
   ui.trackInput.value = file.name;
   activeTrack().id = currentTrackId;
-  await loadFromSelectedFiles({ reloadTrackConfig: true });
+  await loadFromSelectedFiles();
   event.target.value = "";
 }
 
@@ -2785,7 +2866,7 @@ async function handleFigureFileSelected(event) {
     ui.figureInput.value = file.name;
     activeTrack().figureId = currentFigureId;
   }
-  await loadFromSelectedFiles({ reloadTrackConfig: false });
+  await loadFromSelectedFiles();
   event.target.value = "";
 }
 
@@ -2800,9 +2881,28 @@ async function createNewGame() {
   };
   advancingTrack = false;
   ui.loadBundleInput.value = "";
-  await activateTrack(0);
+  // Do not route through activateTrack here: when this button is pressed from
+  // the editor, activateTrack would commit the *old* editor configuration into
+  // the newly-created game before its own configuration is ready.
+  const firstTrack = activeTrack();
+  currentTrackId = firstTrack.id;
+  currentFigureId = firstTrack.figureId;
+  config = normalizeConfig(firstTrack.config, currentTrackId, currentFigureId);
+  state = newGameState();
+  applyTrackImages(firstTrack);
+  await Promise.all([waitForImage(trackImage), waitForImage(figureImage)]);
+  syncUiFromConfig();
+  resizeCanvas();
+  saveGameToStorage();
   setTool("walk");
   setMode("editor");
+}
+
+function setOnlinePanelOpen(isOpen) {
+  if (!ui.onlinePanelContent || !ui.onlineToggleButton) return;
+  ui.onlinePanelContent.hidden = !isOpen;
+  ui.onlineToggleButton.setAttribute("aria-expanded", String(isOpen));
+  if (ui.onlineToggleText) ui.onlineToggleText.textContent = isOpen ? "Luk" : "Åbn";
 }
 
 async function loadTrackFromInput() {
@@ -2812,16 +2912,22 @@ async function loadTrackFromInput() {
   activeTrack().id = currentTrackId;
   selectedTrackFileUrl = null;
   setAssetSources();
+  await Promise.all([waitForImage(trackImage), waitForImage(figureImage)]);
+  if (!trackImage.naturalWidth) {
+    alert("Baggrundsbilledet kunne ikke vises. Tjek navnet eller vælg en billedfil.");
+    return;
+  }
   activeTrack().trackImageData = trackImage.src.startsWith("data:") || trackImage.src.startsWith("blob:")
     ? trackImage.src
     : null;
-  config = normalizeConfig(await loadConfig(), currentTrackId, currentFigureId);
+  // Keep all tiles, objects and editor settings. This field changes only the
+  // background selected in the Bane box.
+  config.id = currentTrackId;
+  config.trackImage = assetPath("Tracks", currentTrackId);
   activeTrack().config = JSON.parse(JSON.stringify(config));
-  state = newGameState();
   syncUiFromConfig();
   saveGameToStorage();
   setMode("editor");
-  await Promise.all([waitForImage(trackImage), waitForImage(figureImage)]);
   resizeCanvas();
 }
 
@@ -3312,6 +3418,9 @@ ui.musicVolume.addEventListener("input", () => {
   ui.backgroundMusic.addEventListener(eventName, () => updateBackgroundMusicUi());
 });
 window.addEventListener("beforeunload", releaseBackgroundMusic);
+window.addEventListener("pagehide", () => {
+  persistActiveConfig();
+});
 ui.trackFileInput.addEventListener("change", handleTrackFileSelected);
 ui.figureFileInput.addEventListener("change", handleFigureFileSelected);
 ui.trackInput.addEventListener("keydown", (event) => {
@@ -3508,6 +3617,9 @@ ui.proCopyWalkableButton.addEventListener("click", copyProWalkable);
 ui.proFrameFileInput.addEventListener("change", addProImageFrames);
 
 if (ui.onlinePanel) {
+  ui.onlineToggleButton.addEventListener("click", () => {
+    setOnlinePanelOpen(ui.onlinePanelContent.hidden);
+  });
   ui.onlineClass.addEventListener("change", () => {
     void refreshOnlineLibrary().catch((error) => {
       setOnlineStatus(error.message || "Listerne kunne ikke opdateres.", true);
@@ -3646,21 +3758,21 @@ function waitForImage(image) {
 }
 
 async function loadGame() {
+  const stored = await loadGameDraft();
+  if (stored) {
+    try {
+      return normalizeGame(JSON.parse(stored));
+    } catch {
+      localStorage.removeItem(GAME_STORAGE_KEY);
+    }
+  }
+
   if (TUTORIAL_START_MODE) {
     try {
       const response = await fetch("Spil/Toturial.dgm", { cache: "no-store" });
       if (response.ok) return migrateBundleToGame(await response.json());
     } catch {
       // A saved or empty game remains available if the tutorial is unavailable.
-    }
-  }
-
-  const stored = localStorage.getItem(GAME_STORAGE_KEY);
-  if (stored) {
-    try {
-      return normalizeGame(JSON.parse(stored));
-    } catch {
-      localStorage.removeItem(GAME_STORAGE_KEY);
     }
   }
 

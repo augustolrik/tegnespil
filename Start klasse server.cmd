@@ -4,6 +4,8 @@ cd /d "%~dp0"
 title TegneSpil - klasseserver
 
 set "NODE=%USERPROFILE%\tools\node-v24.17.0-win-x64\node.exe"
+if not exist "%NODE%" set "NODE=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
+if not exist "%NODE%" set "NODE=node.exe"
 if not exist "%NODE%" (
   echo.
   echo Jeg kan ikke finde Node.js, som klasseserveren bruger.

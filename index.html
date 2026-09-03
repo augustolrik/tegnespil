@@ -74,86 +74,95 @@
       </section>
 
       <aside class="panel">
-        <div class="status-grid">
-          <div>
-            <span>Point</span>
-            <strong id="scoreText">0 / 15</strong>
+        <section class="game-status" aria-labelledby="gameStatusTitle">
+          <div class="game-status-heading">
+            <h2 id="gameStatusTitle">Spilstatus</h2>
+            <span class="local-draft-status">Kladde gemmes automatisk</span>
           </div>
-          <div>
-            <span>Tilstand</span>
-            <strong id="modeText">Spil</strong>
+          <div class="status-grid">
+            <div>
+              <span>Point</span>
+              <strong id="scoreText">0 / 15</strong>
+            </div>
+            <div>
+              <span>Tilstand</span>
+              <strong id="modeText">Spil</strong>
+            </div>
+            <div>
+              <span>Bane</span>
+              <strong id="trackProgressText">1 / 1</strong>
+            </div>
+            <div>
+              <span>Felt</span>
+              <strong id="tileText">Gå</strong>
+            </div>
           </div>
-          <div>
-            <span>Bane</span>
-            <strong id="trackProgressText">1 / 1</strong>
-          </div>
-          <div>
-            <span>Felt</span>
-            <strong id="tileText">Gå</strong>
-          </div>
-        </div>
+        </section>
 
         <div id="playHelp" class="hint">
           Brug piletasterne til at flytte. Når en bane er gennemført, går spillet videre til næste bane.
         </div>
 
         <section id="onlinePanel" class="online-panel" hidden aria-labelledby="onlinePanelTitle">
-          <div class="online-panel-heading">
-            <h2 id="onlinePanelTitle">Online gemning</h2>
-            <span class="online-badge">Klasseserver</span>
-          </div>
-          <p class="hint">Vælg klasse, skriv dit navn eller dine initialer og din egen 4-cifrede kode. Koden gør, at kun du kan åbne og gemme dit spil – også fra en anden computer.</p>
+          <button id="onlineToggleButton" class="online-toggle" type="button" aria-expanded="false" aria-controls="onlinePanelContent">
+            <span id="onlinePanelTitle">Online gemning</span>
+            <span class="online-toggle-meta"><span class="online-badge">Klasseserver</span><span id="onlineToggleText">Åbn</span></span>
+          </button>
 
-          <div class="online-fields">
-            <label for="onlineClass">
-              Klasse
-              <select id="onlineClass">
-                <option value="">Vælg klasse</option>
-              </select>
-            </label>
+          <div id="onlinePanelContent" class="online-panel-content" hidden>
+            <p class="hint">Vælg klasse, skriv dit navn eller dine initialer og din egen 4-cifrede kode. Koden gør, at kun du kan åbne og gemme dit spil – også fra en anden computer.</p>
 
-            <label for="onlineStudent">
-              Elev
-              <input id="onlineStudent" type="text" placeholder="Skriv navn eller initialer" autocomplete="name" spellcheck="false">
-            </label>
-
-            <label for="onlinePin">
-              Din 4-cifrede kode
-              <input id="onlinePin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" placeholder="Fx 1234" autocomplete="off">
-            </label>
-
-          </div>
-
-          <fieldset class="online-library" aria-describedby="onlineLibraryHelp">
-            <legend>Fælles materialer</legend>
-            <p id="onlineLibraryHelp" class="hint">Læreren lægger billedfiler i klassens <strong>Baner</strong>- og <strong>Figurer</strong>-mapper. Undermapper vises i listen.</p>
             <div class="online-fields">
-              <label for="onlineServerTrack">
-                Bane fra server
-                <select id="onlineServerTrack">
-                  <option value="">Vælg bane…</option>
+              <label for="onlineClass">
+                Klasse
+                <select id="onlineClass">
+                  <option value="">Vælg klasse</option>
                 </select>
               </label>
-              <label for="onlineServerFigure">
-                Figur fra server
-                <select id="onlineServerFigure">
-                  <option value="">Vælg figur…</option>
-                </select>
-              </label>
-            </div>
-            <div class="online-actions online-library-actions">
-              <button id="onlineApplyTrackButton" type="button">Indlæs bane fra server</button>
-              <button id="onlineApplyFigureButton" type="button">Indlæs figur fra server</button>
-            </div>
-          </fieldset>
 
-          <div class="online-actions">
-            <button id="onlineLoadButton" type="button">Hent spil fra server</button>
-            <button id="onlineSaveButton" class="primary" type="button">Gem på server</button>
-            <button id="onlineRefreshButton" type="button">Opdatér serverlister</button>
+              <label for="onlineStudent">
+                Elev
+                <input id="onlineStudent" type="text" placeholder="Skriv navn eller initialer" autocomplete="name" spellcheck="false">
+              </label>
+
+              <label for="onlinePin">
+                Din 4-cifrede kode
+                <input id="onlinePin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" placeholder="Fx 1234" autocomplete="off">
+              </label>
+
+            </div>
+
+            <fieldset class="online-library" aria-describedby="onlineLibraryHelp">
+              <legend>Fælles materialer</legend>
+              <p id="onlineLibraryHelp" class="hint">Læreren lægger billedfiler i klassens <strong>Baner</strong>- og <strong>Figurer</strong>-mapper. Undermapper vises i listen.</p>
+              <div class="online-fields">
+                <label for="onlineServerTrack">
+                  Bane fra server
+                  <select id="onlineServerTrack">
+                    <option value="">Vælg bane…</option>
+                  </select>
+                </label>
+                <label for="onlineServerFigure">
+                  Figur fra server
+                  <select id="onlineServerFigure">
+                    <option value="">Vælg figur…</option>
+                  </select>
+                </label>
+              </div>
+              <div class="online-actions online-library-actions">
+                <button id="onlineApplyTrackButton" type="button">Indlæs bane fra server</button>
+                <button id="onlineApplyFigureButton" type="button">Indlæs figur fra server</button>
+              </div>
+            </fieldset>
+
+            <div class="online-actions">
+              <button id="onlineLoadButton" type="button">Hent spil fra server</button>
+              <button id="onlineSaveButton" class="primary" type="button">Gem på server</button>
+              <button id="onlineRefreshButton" type="button">Opdatér serverlister</button>
+            </div>
+
+            <p id="onlineStatus" class="online-status" role="status" aria-live="polite">Ikke tilsluttet</p>
           </div>
-
-          <p id="onlineStatus" class="online-status" role="status" aria-live="polite">Ikke tilsluttet</p>
         </section>
 
         <div id="editorTools" class="editor-tools" hidden>
