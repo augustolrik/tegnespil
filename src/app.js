@@ -215,8 +215,8 @@ let backgroundMusicUrl = null;
 let backgroundMusicFileName = "";
 let backgroundMusicStatusOverride = "";
 
-ui.loadTrackButton.textContent = "Indlaes bane";
-ui.loadTrackButton.title = "Vaelg et banefoto fra din computer";
+ui.loadTrackButton.textContent = "Indlaes baggrund";
+ui.loadTrackButton.title = "Vaelg et baggrundsbillede fra din computer";
 ui.loadFigureButton.textContent = "Indlaes figur";
 ui.loadFigureButton.title = "Vaelg et figur-billede fra din computer";
 let pendingClueImageData = null;
@@ -2637,7 +2637,7 @@ async function refreshOnlineLibrary() {
   if (!classId) {
     onlineState.tracks = [];
     onlineState.figures = [];
-    populateOnlineLibrarySelect(ui.onlineServerTrack, [], "Vælg bane…");
+    populateOnlineLibrarySelect(ui.onlineServerTrack, [], "Vælg baggrund…");
     populateOnlineLibrarySelect(ui.onlineServerFigure, [], "Vælg figur…");
     if (ui.onlineApplyTrackButton) ui.onlineApplyTrackButton.disabled = true;
     if (ui.onlineApplyFigureButton) ui.onlineApplyFigureButton.disabled = true;
@@ -2652,7 +2652,7 @@ async function refreshOnlineLibrary() {
     ...entry,
     url: onlineApiUrl(entry.url),
   }));
-  populateOnlineLibrarySelect(ui.onlineServerTrack, onlineState.tracks, "Vælg bane…");
+  populateOnlineLibrarySelect(ui.onlineServerTrack, onlineState.tracks, "Vælg baggrund…");
   populateOnlineLibrarySelect(ui.onlineServerFigure, onlineState.figures, "Vælg figur…");
   if (ui.onlineApplyTrackButton) ui.onlineApplyTrackButton.disabled = onlineState.tracks.length === 0;
   if (ui.onlineApplyFigureButton) ui.onlineApplyFigureButton.disabled = onlineState.figures.length === 0;
@@ -2665,7 +2665,7 @@ async function applyOnlineLibraryAsset(kind) {
   const entry = (isTrack ? onlineState.tracks : onlineState.figures)
     .find((candidate) => candidate.id === select?.value);
   if (!entry) {
-    setOnlineStatus(`Vælg først en ${isTrack ? "bane" : "figur"} fra serveren.`, true);
+    setOnlineStatus(`Vælg først en ${isTrack ? "baggrund" : "figur"} fra serveren.`, true);
     return;
   }
   try {
@@ -2685,7 +2685,7 @@ async function applyOnlineLibraryAsset(kind) {
       config.trackImage = permanentUrl;
       trackImage.src = permanentUrl;
       await waitForImage(trackImage);
-      if (!trackImage.naturalWidth) throw new Error("Banebilledet kunne ikke indlæses.");
+      if (!trackImage.naturalWidth) throw new Error("Baggrundsbilledet kunne ikke indlæses.");
       resizeCanvas();
     } else {
       currentFigureId = sourceId;
@@ -2702,7 +2702,7 @@ async function applyOnlineLibraryAsset(kind) {
     syncUiFromConfig();
     saveGameToStorage();
     draw();
-    setOnlineStatus(`${isTrack ? "Bane" : "Figur"} valgt fra serveren: ${entry.name}`);
+    setOnlineStatus(`${isTrack ? "Baggrund" : "Figur"} valgt fra serveren: ${entry.name}`);
   } catch (error) {
     setOnlineStatus(error.message || "Materialet kunne ikke indlæses.", true);
   }
