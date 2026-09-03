@@ -25,7 +25,16 @@ class FakeStatement {
     throw new Error(`Unexpected first query: ${this.sql}`);
   }
 
-  async all() { return { results: ["4A", "4B", "4C", "4D"].map((id) => ({ id, name: `${id[0]}.${id[1]}` })) }; }
+  async all() {
+    if (this.sql.startsWith("SELECT student_id, updated_at FROM games")) {
+      return {
+        results: [...this.db.games.entries()]
+          .filter(([key]) => key.startsWith(`${this.values[0]}:`))
+          .map(([key, game]) => ({ student_id: key.slice(key.indexOf(":") + 1), updated_at: game.updated_at })),
+      };
+    }
+    return { results: ["4A", "4B", "4C", "4D"].map((id) => ({ id, name: `${id[0]}.${id[1]}` })) };
+  }
 
   async run() {
     if (this.sql.startsWith("INSERT INTO games")) {
@@ -71,6 +80,14 @@ test("a game is PIN protected across create, load, rejection, and update", async
   const opened = await worker.fetch(request(path, { pin: "1234" }), env);
   assert.equal(opened.status, 200);
   assert.equal((await opened.json()).name, "Mit spil");
+
+  const list = await worker.fetch(request("/api/classes/4A/games"), env);
+  assert.equal(list.status, 200);
+  assert.deepEqual((await list.json()).games, [{
+    studentId: "aug",
+    file: "aug.dgm",
+    updatedAt: env.DB.games.get("4A:aug").updated_at,
+  }]);
 
   const denied = await worker.fetch(request(path, { pin: "9999" }), env);
   assert.equal(denied.status, 401);

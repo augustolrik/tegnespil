@@ -5,6 +5,7 @@ Denne mappe er den nye, separate server til online gemning. Den ændrer **ikke**
 ## Hvad den første version gør
 
 - Gemmer og åbner `.dgm`-spil for `4A`–`4D`.
+- Viser en klasses liste over gemte spil med elevnavn og seneste gemmetid. Selve spillet kræver stadig elevens personlige 4-cifrede kode for at kunne åbnes.
 - Elevens navn/initialer sammen med en personlig 4-cifret kode beskytter spillet. Koden gemmes kun som saltet SHA-256-hash.
 - Stopper efter fem forkerte PIN-forsøg fra samme klient i ti minutter.
 - Accepterer kun valideret JSON-spilindhold op til 1,8 MB. Data-URL'er, SVG og scripts afvises. Elever kan derfor ikke lægge programmer eller vilkårlige filer på lærerens computer.

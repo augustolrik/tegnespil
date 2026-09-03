@@ -93,6 +93,7 @@ const ui = {
   onlineClass: document.getElementById("onlineClass"),
   onlineStudent: document.getElementById("onlineStudent"),
   onlinePin: document.getElementById("onlinePin"),
+  onlineSavedGame: document.getElementById("onlineSavedGame"),
   onlineServerTrack: document.getElementById("onlineServerTrack"),
   onlineServerFigure: document.getElementById("onlineServerFigure"),
   onlineApplyTrackButton: document.getElementById("onlineApplyTrackButton"),
@@ -181,7 +182,7 @@ const assetClient = TegneSpilAssets.createClient({
 // Existing local class files remain readable; new image imports use the same
 // cloud asset store as the public game.
 const MAX_LOCAL_SERVER_BUNDLE_BYTES = 64 * 1024 * 1024;
-let onlineState = { classes: [], tracks: [], figures: [] };
+let onlineState = { classes: [], tracks: [], figures: [], games: [] };
 const GRID_LIMITS = Object.freeze({ min: 1, max: 128 });
 const DEFAULT_GRID = Object.freeze({ cols: 15, rows: 15 });
 // The built-in track is an old 32x42 example. Keep its fallback intact so
@@ -2610,16 +2611,16 @@ async function refreshOnlineClasses() {
       ? previous
       : onlineState.classes[0].id;
   }
-  await refreshOnlineLibrary();
+  await Promise.all([refreshOnlineLibrary(), refreshOnlineSavedGames()]);
 }
 
-function populateOnlineLibrarySelect(select, entries, emptyText) {
+function populateOnlineLibrarySelect(select, entries, emptyText, noEntriesText = "Ingen filer endnu") {
   if (!select) return;
   const previous = select.value;
   select.innerHTML = "";
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = entries.length ? emptyText : "Ingen filer endnu";
+  placeholder.textContent = entries.length ? emptyText : noEntriesText;
   select.appendChild(placeholder);
   entries.forEach((entry) => {
     const option = document.createElement("option");
@@ -2656,6 +2657,32 @@ async function refreshOnlineLibrary() {
   populateOnlineLibrarySelect(ui.onlineServerFigure, onlineState.figures, "Vælg figur…");
   if (ui.onlineApplyTrackButton) ui.onlineApplyTrackButton.disabled = onlineState.tracks.length === 0;
   if (ui.onlineApplyFigureButton) ui.onlineApplyFigureButton.disabled = onlineState.figures.length === 0;
+}
+
+function formatSavedGame(entry) {
+  const updated = entry.updatedAt ? new Date(entry.updatedAt) : null;
+  const date = updated && !Number.isNaN(updated.getTime())
+    ? updated.toLocaleString("da-DK", { dateStyle: "short", timeStyle: "short" })
+    : "ukendt dato";
+  return `${entry.studentId} · ${date}`;
+}
+
+async function refreshOnlineSavedGames() {
+  if (!ONLINE_MODE || !ui.onlineSavedGame) return;
+  const classId = ui.onlineClass?.value || "";
+  if (!classId) {
+    onlineState.games = [];
+    populateOnlineLibrarySelect(ui.onlineSavedGame, [], "Vælg et gemt spil…", "Ingen gemte spil endnu");
+    return;
+  }
+  const payload = await onlineApi(`/api/classes/${encodeURIComponent(classId)}/games`);
+  onlineState.games = (Array.isArray(payload.games) ? payload.games : []).map((entry) => ({
+    studentId: String(entry.studentId || ""),
+    updatedAt: entry.updatedAt || "",
+    id: String(entry.studentId || ""),
+    displayName: formatSavedGame(entry),
+  })).filter((entry) => entry.studentId);
+  populateOnlineLibrarySelect(ui.onlineSavedGame, onlineState.games, "Vælg et gemt spil…", "Ingen gemte spil endnu");
 }
 
 async function applyOnlineLibraryAsset(kind) {
@@ -2746,6 +2773,7 @@ async function saveOnlineGame() {
     applyTrackImages(activeTrack());
     saveGameToStorage();
     setOnlineStatus(`Gemt med alle billeder i ${identity.classId} som ${result.file || `${identity.studentId}.dgm`}.`);
+    void refreshOnlineSavedGames();
   } catch (error) {
     setOnlineStatus(error.message || "Spillet kunne ikke gemmes.", true);
   } finally {
@@ -3691,14 +3719,21 @@ if (ui.onlinePanel) {
     setOnlinePanelOpen(ui.onlinePanelContent.hidden);
   });
   ui.onlineClass.addEventListener("change", () => {
-    void refreshOnlineLibrary().catch((error) => {
+    void Promise.all([refreshOnlineLibrary(), refreshOnlineSavedGames()]).catch((error) => {
       setOnlineStatus(error.message || "Listerne kunne ikke opdateres.", true);
     });
+  });
+  ui.onlineSavedGame.addEventListener("change", () => {
+    const gameEntry = onlineState.games.find((entry) => entry.studentId === ui.onlineSavedGame.value);
+    if (!gameEntry) return;
+    ui.onlineStudent.value = gameEntry.studentId;
+    ui.onlinePin.focus();
+    setOnlineStatus(`Spillet for ${gameEntry.studentId} er valgt. Skriv den 4-cifrede kode for at åbne det.`);
   });
   ui.onlineApplyTrackButton.addEventListener("click", () => { void applyOnlineLibraryAsset("track"); });
   ui.onlineApplyFigureButton.addEventListener("click", () => { void applyOnlineLibraryAsset("figure"); });
   ui.onlineRefreshButton.addEventListener("click", () => {
-    void refreshOnlineLibrary().then(() => {
+    void Promise.all([refreshOnlineLibrary(), refreshOnlineSavedGames()]).then(() => {
       setOnlineStatus("Listerne er opdateret.");
     }).catch((error) => {
       setOnlineStatus(error.message || "Listerne kunne ikke opdateres.", true);

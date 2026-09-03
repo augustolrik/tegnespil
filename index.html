@@ -140,6 +140,17 @@
 
             </div>
 
+            <fieldset class="online-library" aria-describedby="onlineSavedGamesHelp">
+              <legend>Gemte spil på serveren</legend>
+              <p id="onlineSavedGamesHelp" class="hint">Vælg et spil for at sætte elevnavnet. Den rigtige 4-cifrede kode kræves stadig for at åbne det.</p>
+              <label for="onlineSavedGame">
+                Spil i den valgte klasse
+                <select id="onlineSavedGame">
+                  <option value="">Ingen spil hentet endnu</option>
+                </select>
+              </label>
+            </fieldset>
+
             <fieldset class="online-library" aria-describedby="onlineLibraryHelp">
               <legend>Fælles materialer</legend>
               <p id="onlineLibraryHelp" class="hint">Læreren lægger billedfiler i klassens <strong>Baner</strong>- og <strong>Figurer</strong>-mapper. Undermapper vises i listen.</p>
@@ -487,6 +498,6 @@
     </main>
 
     <script src="src/asset-pipeline.js?v=cloud-assets-20260903"></script>
-    <script src="src/app.js?v=new-default-tutorial-20260903"></script>
+    <script src="src/app.js?v=server-game-list-20260903"></script>
   </body>
 </html>

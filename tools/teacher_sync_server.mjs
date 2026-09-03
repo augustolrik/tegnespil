@@ -437,12 +437,31 @@ async function handleApi(request, response, parsedUrl) {
     sendJson(response, 404, { error: "API-stien findes ikke." });
     return true;
   }
+  const gamesRoot = path.join(classRoot, "Spil");
+  if (parts.length === 4 && request.method === "GET") {
+    try {
+      const entries = await fs.readdir(gamesRoot, { withFileTypes: true });
+      const games = (await Promise.all(entries
+        .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".dgm"))
+        .map(async (entry) => {
+          const studentId = entry.name.slice(0, -4);
+          if (safeStudentId(studentId) !== studentId) return null;
+          const details = await fs.stat(path.join(gamesRoot, entry.name));
+          return { studentId, file: entry.name, updatedAt: details.mtime.toISOString() };
+        }))).filter(Boolean)
+        .sort((first, second) => second.updatedAt.localeCompare(first.updatedAt) || first.studentId.localeCompare(second.studentId));
+      sendJson(response, 200, { games });
+    } catch (error) {
+      if (error.code === "ENOENT") sendJson(response, 200, { games: [] });
+      else sendJson(response, 500, { error: "Spillisten kunne ikke læses." });
+    }
+    return true;
+  }
   const studentId = safeStudentId(parts[4]);
   if (!studentId || (parts.length !== 5 && !(parts.length === 6 && parts[5] === "download"))) {
     sendJson(response, 400, { error: "Ugyldigt elevnavn." });
     return true;
   }
-  const gamesRoot = path.join(classRoot, "Spil");
   const gamePath = path.resolve(gamesRoot, `${studentId}.dgm`);
   if (!insideRoot(path.resolve(gamesRoot), gamePath)) {
     sendJson(response, 400, { error: "Ugyldig filsti." });

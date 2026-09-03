@@ -145,6 +145,19 @@ async function readGame(request, env, classId, studentId) {
   });
 }
 
+async function listGames(request, env, classId) {
+  const result = await env.DB.prepare(
+    "SELECT student_id, updated_at FROM games WHERE class_id = ? ORDER BY updated_at DESC, student_id",
+  ).bind(classId).all();
+  return json(request, env, 200, {
+    games: (result.results || []).map((game) => ({
+      studentId: game.student_id,
+      file: `${game.student_id}.dgm`,
+      updatedAt: game.updated_at,
+    })),
+  });
+}
+
 async function saveGame(request, env, classId, studentId) {
   const contentType = request.headers.get("Content-Type") || "";
   if (!contentType.toLowerCase().includes("application/json")) return json(request, env, 415, { error: "Spillet skal sendes som JSON." });
@@ -246,6 +259,17 @@ export default {
       } catch (error) {
         return json(request, env, 500, { error: "Klassens billedbibliotek kunne ikke læses." });
       }
+    }
+    const gamesPath = url.pathname.match(/^\/api\/classes\/([^/]+)\/games$/);
+    if (gamesPath && request.method === "GET") {
+      const classId = safeSegment(decodedPathSegment(gamesPath[1]));
+      if (!classId) return json(request, env, 400, { error: "Ugyldig klasse." });
+      try { await assertKnownClass(env.DB, classId); }
+      catch (error) {
+        return error instanceof Response ? error : json(request, env, 500, { error: "Klasseoversigten kunne ikke læses." });
+      }
+      try { return await listGames(request, env, classId); }
+      catch { return json(request, env, 500, { error: "Spillisten kunne ikke læses." }); }
     }
     const gamePath = url.pathname.match(/^\/api\/classes\/([^/]+)\/games\/([^/]+)$/);
     if (gamePath) {
