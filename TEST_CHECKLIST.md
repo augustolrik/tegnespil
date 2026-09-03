@@ -35,6 +35,7 @@ Brug listen ved en ny udgivelse. Sæt kryds, når hvert punkt er prøvet.
 - [ ] Vælg **Genstand**, **Krystal**, **Monster** og **Portal**. Placér dem, og kontroller at de virker i Spil-tilstand.
 - [ ] Ændr krystalværdi, monstertal og monsterfart. Kontroller at ændringen påvirker spillet.
 - [ ] Ændr gitterets rækker og kolonner med **Skaler gitter**. Rute og indhold skal blive flyttet inden for det nye gitter.
+- [ ] Åbn **Gitter og udseende** og kontrollér, at sektionen er lukket som udgangspunkt.
 - [ ] Slå **Vis gitter** til og fra.
 - [ ] Ændr gitterfarve, gitterstyrke, gå-feltfarve og gå-feltstyrke.
 

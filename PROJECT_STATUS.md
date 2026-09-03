@@ -14,3 +14,4 @@
 - Image imports: The server no longer limits image imports per hour. Images are still validated, processed to WebP, deduplicated and stopped at the 9.6 GB R2 storage ceiling.
 - Music controls: The toolbar shows only `Indlæs MP3` until a music file is chosen. The selected file then appears in a compact fold-out control containing change, play, stop and volume controls.
 - Online panel: Online save/load is displayed below the game canvas instead of inside the editor/status panel.
+- Editor layout: `Gitter og udseende` is collapsed by default to keep the editor compact.
