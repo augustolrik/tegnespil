@@ -2,6 +2,13 @@ name = "tegnespil-api"
 main = "src/index.js"
 compatibility_date = "2026-09-02"
 
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "tegnespil-assets"
+
+[images]
+binding = "IMAGES"
+
 # Copy this file to wrangler.toml after creating the D1 database.
 [[d1_databases]]
 binding = "DB"

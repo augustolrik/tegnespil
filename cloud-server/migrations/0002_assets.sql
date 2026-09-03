@@ -1,13 +1,11 @@
-PRAGMA foreign_keys = ON;
-
+-- Run once against the existing production D1 database before deploying the
+-- Worker version that includes permanent image assets.
 CREATE TABLE IF NOT EXISTS asset_upload_limits (
   client_tag TEXT PRIMARY KEY,
   window INTEGER NOT NULL,
   attempts INTEGER NOT NULL
 );
 
--- Keep a hard, server-side ceiling below R2's 10 GB free storage allowance.
--- Standard R2 billing uses decimal GB, so 9.6 GB is 9,600,000,000 bytes.
 CREATE TABLE IF NOT EXISTS asset_storage (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   used_bytes INTEGER NOT NULL DEFAULT 0 CHECK (used_bytes >= 0)
@@ -39,32 +37,6 @@ BEGIN
   UPDATE asset_storage SET used_bytes = used_bytes - OLD.byte_length WHERE id = 1;
 END;
 
-CREATE TABLE IF NOT EXISTS classes (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL
-);
-
-INSERT OR IGNORE INTO classes (id, name) VALUES
-  ('4A', '4.A'),
-  ('4B', '4.B'),
-  ('4C', '4.C'),
-  ('4D', '4.D');
-
-CREATE TABLE IF NOT EXISTS games (
-  class_id TEXT NOT NULL REFERENCES classes(id),
-  student_id TEXT NOT NULL,
-  pin_salt TEXT NOT NULL,
-  pin_hash TEXT NOT NULL,
-  bundle_json TEXT NOT NULL,
-  byte_length INTEGER NOT NULL,
-  revision INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (class_id, student_id)
-);
-
-CREATE INDEX IF NOT EXISTS games_by_class ON games(class_id);
-
 CREATE TABLE IF NOT EXISTS class_assets (
   class_id TEXT NOT NULL REFERENCES classes(id),
   kind TEXT NOT NULL CHECK (kind IN ('track', 'figure')),
@@ -75,12 +47,3 @@ CREATE TABLE IF NOT EXISTS class_assets (
 );
 
 CREATE INDEX IF NOT EXISTS class_assets_by_class ON class_assets(class_id, kind, name);
-
-CREATE TABLE IF NOT EXISTS pin_attempts (
-  class_id TEXT NOT NULL,
-  student_id TEXT NOT NULL,
-  client_tag TEXT NOT NULL,
-  window_started_at INTEGER NOT NULL,
-  attempts INTEGER NOT NULL,
-  PRIMARY KEY (class_id, student_id, client_tag)
-);

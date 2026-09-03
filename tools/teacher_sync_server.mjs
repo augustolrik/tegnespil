@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import "../src/asset-pipeline.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataRoot = path.resolve(process.env.TEGNE_SPIL_DATA || path.join(projectRoot, "Klasser"));
@@ -117,6 +118,7 @@ async function readBody(request) {
 }
 
 function validateImageSource(value, fieldName) {
+  if (globalThis.TegneSpilAssets.isReference(value)) return;
   if (value === null || value === undefined || value === "") return;
   if (typeof value !== "string" || value.length > 8 * 1024 * 1024) {
     throw new Error(`${fieldName} er ugyldig eller for stort.`);

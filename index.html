@@ -46,6 +46,15 @@
           <input id="trackFileInput" type="file" accept="image/*" hidden>
           <input id="figureFileInput" type="file" accept="image/*" hidden>
 
+          <details class="toolbar-editor-only image-import">
+            <summary>Importér billede fra nettet / PhotoDrop</summary>
+            <label>Billedadresse <input id="imageImportUrl" type="url" placeholder="https://…" spellcheck="false"></label>
+            <label>Kilde <select id="imageImportSource"><option value="web">Nettet</option><option value="photodrop">PhotoDrop</option></select></label>
+            <label>Brug som <select id="imageImportKind"><option value="track">Baggrund</option><option value="figure">Figur</option><option value="clue">Billede til spor</option><option value="frame">Pro-ramme</option></select></label>
+            <button id="imageImportButton" type="button">Importér og brug billede</button>
+          </details>
+          <span id="imageImportStatus" class="toolbar-editor-only" role="status" aria-live="polite"></span>
+
           <div class="music-controls" aria-label="Baggrundsmusik">
             <button id="loadMusicButton" type="button" title="Vaelg en MP3-fil med baggrundsmusik">Indlaes MP3</button>
             <input id="musicFileInput" type="file" accept=".mp3" hidden>
@@ -74,11 +83,11 @@
       </section>
 
       <aside class="panel">
-        <section class="game-status" aria-labelledby="gameStatusTitle">
-          <div class="game-status-heading">
+        <details id="gameStatus" class="game-status" open>
+          <summary class="game-status-heading">
             <h2 id="gameStatusTitle">Spilstatus</h2>
             <span class="local-draft-status">Kladde gemmes automatisk</span>
-          </div>
+          </summary>
           <div class="status-grid">
             <div>
               <span>Point</span>
@@ -97,7 +106,7 @@
               <strong id="tileText">Gå</strong>
             </div>
           </div>
-        </section>
+        </details>
 
         <div id="playHelp" class="hint">
           Brug piletasterne til at flytte. Når en bane er gennemført, går spillet videre til næste bane.
@@ -482,6 +491,7 @@
       </div>
     </main>
 
-    <script src="src/app.js?v=online-save-20260902"></script>
+    <script src="src/asset-pipeline.js?v=cloud-assets-20260903"></script>
+    <script src="src/app.js?v=cloud-assets-20260903"></script>
   </body>
 </html>

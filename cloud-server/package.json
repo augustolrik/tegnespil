@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --test",
     "check": "node --check src/index.js && node --check src/validation.js",
+    "upload:class-assets": "node tools/upload_class_assets.mjs",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },

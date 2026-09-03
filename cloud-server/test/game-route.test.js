@@ -48,9 +48,9 @@ class FakeStatement {
 }
 
 const game = (name = "Mit spil") => ({
-  version: 2,
+  version: 3,
   name,
-  tracks: [{ id: "track_1", config: { trackImage: "Tracks/track_1.png", figureImage: "Figures/figure_1.png" } }],
+  tracks: [{ id: "track_1", config: { trackImage: { builtin: "default-track" }, figureImage: { builtin: "default-figure" } } }],
 });
 
 function request(path, { method = "GET", pin, body } = {}) {

@@ -225,6 +225,31 @@ button:hover,
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  list-style: none;
+}
+
+.game-status-heading::-webkit-details-marker {
+  display: none;
+}
+
+body:not(.play-mode) .game-status-heading {
+  cursor: pointer;
+}
+
+body:not(.play-mode) .game-status-heading::before {
+  content: "▾";
+  margin-right: 6px;
+  color: var(--muted);
+  font-size: 15px;
+  transition: transform 120ms ease;
+}
+
+body:not(.play-mode) .game-status:not([open]) .game-status-heading::before {
+  transform: rotate(-90deg);
+}
+
+body.play-mode .game-status-heading {
+  pointer-events: none;
 }
 
 .local-draft-status {
@@ -909,3 +934,14 @@ body.play-mode .toolbar-editor-only {
 #saveDialogConfirm:hover {
   background: #096767;
 }
+.image-import {
+  max-width: 420px;
+  padding: 8px;
+  border: 1px solid var(--line, #d5dce0);
+  border-radius: 8px;
+}
+
+.image-import summary { cursor: pointer; }
+.image-import[open] { display: grid; gap: 8px; }
+.image-import input { width: 100%; min-width: 0; }
+#imageImportStatus { max-width: 360px; font-size: 0.85rem; }

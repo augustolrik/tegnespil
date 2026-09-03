@@ -6,6 +6,7 @@ import {
   safeStudentId,
   validateBundle,
 } from "./validation.js";
+import { importAsset, readAsset, assertAssetsExist, storageUsage } from "./assets.js";
 
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -20,7 +21,7 @@ function cors(request, env) {
   if (!origin || !allowedOrigins(env).has(origin)) return {};
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, PUT, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-TegneSpil-Pin",
     "Access-Control-Max-Age": "600",
     Vary: "Origin",
@@ -163,6 +164,7 @@ async function saveGame(request, env, classId, studentId) {
   ).bind(classId, studentId).first();
   const timestamp = new Date(now).toISOString();
   if (!existing) {
+    await assertAssetsExist(bundle, env);
     const gameCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM games WHERE class_id = ?").bind(classId).first();
     if (gameCount.total >= MAX_GAME_COUNT_PER_CLASS) return json(request, env, 429, { error: "Klassen har nået grænsen for gemte spil. Spørg læreren." });
     const salt = randomHex();
@@ -176,6 +178,7 @@ async function saveGame(request, env, classId, studentId) {
     return json(request, env, 401, { error: "Navn eller kode passer ikke." });
   }
   const revision = Number(existing.revision) + 1;
+  await assertAssetsExist(bundle, env);
   await env.DB.prepare(
     "UPDATE games SET bundle_json = ?, byte_length = ?, revision = ?, updated_at = ? WHERE class_id = ? AND student_id = ?",
   ).bind(JSON.stringify(bundle), rawBytes, revision, timestamp, classId, studentId).run();
@@ -191,6 +194,27 @@ export default {
       return new Response(null, { status: 204, headers: cors(request, env) });
     }
     if (url.pathname === "/api/health" && request.method === "GET") return json(request, env, 200, { ok: true });
+    if (url.pathname === "/api/assets" && request.method === "POST") {
+      if (!cors(request, env)["Access-Control-Allow-Origin"]) return json(request, env, 403, { error: "Billedimport er kun tilladt fra TegneSpil." });
+      try {
+        const tag = await clientTag(request, env);
+        const window = Math.floor(Date.now() / 3600000);
+        // Atomic reservation prevents parallel requests from bypassing the cap.
+        const quota = await env.DB.prepare(
+          "INSERT INTO asset_upload_limits (client_tag, window, attempts) VALUES (?, ?, 1) ON CONFLICT(client_tag) DO UPDATE SET window = excluded.window, attempts = CASE WHEN window = excluded.window THEN attempts + 1 ELSE 1 END RETURNING attempts",
+        ).bind(tag, window).first();
+        if (quota.attempts > 120) return json(request, env, 429, { error: "For mange billedimporter. Vent en time og prøv igen." });
+        return json(request, env, 201, await importAsset(request, env));
+      } catch (error) {
+        return json(request, env, 400, { error: error.message || "Billedet kunne ikke importeres." });
+      }
+    }
+    const assetPath = url.pathname.match(/^\/api\/assets\/(img_[a-f0-9]{64})$/);
+    if (assetPath && request.method === "GET") return readAsset(assetPath[1], env, cors(request, env));
+    if (url.pathname === "/api/assets/usage" && request.method === "GET") {
+      try { return json(request, env, 200, await storageUsage(env)); }
+      catch { return json(request, env, 500, { error: "Billedlagerets forbrug kunne ikke læses." }); }
+    }
     if (url.pathname === "/api/classes" && request.method === "GET") {
       const result = await env.DB.prepare("SELECT id, name FROM classes ORDER BY id").all();
       return json(request, env, 200, { classes: result.results });
@@ -200,8 +224,28 @@ export default {
       const classId = safeSegment(decodedPathSegment(library[1]));
       if (!classId) return json(request, env, 400, { error: "Ugyldig klasse." });
       try { await assertKnownClass(env.DB, classId); }
-      catch (response) { return response; }
-      return json(request, env, 200, { tracks: [], figures: [] });
+      catch (error) {
+        return error instanceof Response ? error : json(request, env, 500, { error: "Klasseoversigten kunne ikke læses." });
+      }
+      try {
+        const result = await env.DB.prepare(
+          "SELECT kind, asset_id, name FROM class_assets WHERE class_id = ? ORDER BY kind, name",
+        ).bind(classId).all();
+        const entries = (result.results || []).map((row) => ({
+          id: row.asset_id,
+          assetId: row.asset_id,
+          name: row.name,
+          displayName: row.name,
+          source: "upload",
+          url: `/api/assets/${row.asset_id}`,
+        }));
+        return json(request, env, 200, {
+          tracks: entries.filter((entry, index) => result.results[index].kind === "track"),
+          figures: entries.filter((entry, index) => result.results[index].kind === "figure"),
+        });
+      } catch (error) {
+        return json(request, env, 500, { error: "Klassens billedbibliotek kunne ikke læses." });
+      }
     }
     const gamePath = url.pathname.match(/^\/api\/classes\/([^/]+)\/games\/([^/]+)$/);
     if (gamePath) {
@@ -209,7 +253,9 @@ export default {
       const studentId = safeStudentId(decodedPathSegment(gamePath[2]));
       if (!classId || !studentId) return json(request, env, 400, { error: "Ugyldig klasse eller elev." });
       try { await assertKnownClass(env.DB, classId); }
-      catch (response) { return response; }
+      catch (error) {
+        return error instanceof Response ? error : json(request, env, 500, { error: "Klasseoversigten kunne ikke læses." });
+      }
       try {
         if (request.method === "GET") return await readGame(request, env, classId, studentId);
         if (request.method === "PUT") return await saveGame(request, env, classId, studentId);

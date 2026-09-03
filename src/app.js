@@ -5,6 +5,8 @@ const ctx = canvas.getContext("2d");
 
 const trackImage = new Image();
 const figureImage = new Image();
+trackImage.crossOrigin = "anonymous";
+figureImage.crossOrigin = "anonymous";
 trackImage.src = assetPath("Tracks", currentTrackId);
 figureImage.src = assetPath("Figures", currentFigureId);
 
@@ -34,6 +36,7 @@ const ui = {
   resetButton: document.getElementById("resetButton"),
   saveButton: document.getElementById("saveButton"),
   loadBundleInput: document.getElementById("loadBundleInput"),
+  gameStatus: document.getElementById("gameStatus"),
   scoreText: document.getElementById("scoreText"),
   modeText: document.getElementById("modeText"),
   tileText: document.getElementById("tileText"),
@@ -169,9 +172,13 @@ const ONLINE_API_BASE = String(
   onlineQuery.get("api") || (PUBLIC_SITE ? "https://tegnespil-api.augustolrik.workers.dev" : ""),
 ).trim().replace(/\/+$/, "");
 const MAX_ONLINE_BUNDLE_BYTES = 1_800_000;
-// The teacher server runs on the school's computer and stores game files in
-// its local Klasser folder. It deliberately accepts embedded JPEG/PNG/WebP
-// images, whereas the public Cloudflare service does not have image storage.
+const assetClient = TegneSpilAssets.createClient({
+  apiBase: ONLINE_API_BASE || "https://tegnespil-api.augustolrik.workers.dev",
+  pageUrl: window.location.href,
+  onStatus: (message) => { document.getElementById("imageImportStatus").textContent = message; },
+});
+// Existing local class files remain readable; new image imports use the same
+// cloud asset store as the public game.
 const MAX_LOCAL_SERVER_BUNDLE_BYTES = 64 * 1024 * 1024;
 let onlineState = { classes: [], tracks: [], figures: [] };
 const GRID_LIMITS = Object.freeze({ min: 1, max: 128 });
@@ -194,6 +201,12 @@ let config = null;
 let state = null;
 let selectedTrackFileUrl = null;
 let selectedFigureFileUrl = null;
+let assetBusyCount = 0;
+
+function setAssetBusy(busy) {
+  assetBusyCount += busy ? 1 : -1;
+  document.querySelector(".app").inert = assetBusyCount > 0;
+}
 let game = null;
 let advancingTrack = false;
 let backgroundMusicUrl = null;
@@ -241,6 +254,7 @@ function createDefaultGame() {
 }
 
 function normalizeGame(nextGame) {
+  nextGame = assetClient.hydrate(nextGame);
   if (nextGame.tracks && nextGame.tracks.length) {
     return {
       version: 2,
@@ -286,7 +300,7 @@ function migrateBundleToGame(bundle) {
 
 function saveGameToStorage() {
   if (!game) return;
-  const serialized = JSON.stringify(game);
+  const serialized = JSON.stringify(assetClient.serializeKnown(game));
   const savedAt = Date.now();
   try {
     localStorage.setItem(GAME_STORAGE_KEY, serialized);
@@ -383,35 +397,70 @@ function isSeedTrack(trackId) {
 }
 
 function blankImageDataUrl() {
-  const c = document.createElement("canvas");
-  c.width = c.height = 8;
-  const cx = c.getContext("2d");
-  cx.fillStyle = "#ffffff";
-  cx.fillRect(0, 0, 8, 8);
-  return c.toDataURL("image/jpeg");
+  return "assets/blank.svg";
 }
 
-async function fileToDataUrl(file) {
-  if ("createImageBitmap" in window) {
-    try {
-      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-      const imageCanvas = document.createElement("canvas");
-      imageCanvas.width = bitmap.width;
-      imageCanvas.height = bitmap.height;
-      const imageCtx = imageCanvas.getContext("2d");
-      imageCtx.drawImage(bitmap, 0, 0);
-      bitmap.close();
-      return imageCanvas.toDataURL("image/jpeg", 0.92);
-    } catch {
-      // Fall back to FileReader below when the browser cannot decode the image this way.
+async function importGameImage(input, source = "upload") {
+  setAssetBusy(true);
+  const targetGame = game;
+  const targetTrack = game && activeTrack();
+  try {
+    const url = await assetClient.importImage(input, source);
+    const preview = new Image();
+    preview.crossOrigin = "anonymous";
+    preview.src = new URL(url, window.location.href).href;
+    await preview.decode();
+    if (game !== targetGame || (game && activeTrack() !== targetTrack)) {
+      throw new Error("Spillet eller banen blev skiftet under importen. Vælg billedet igen.");
     }
+    return url;
+  } catch (error) {
+    document.getElementById("imageImportStatus").textContent = error.message;
+    throw error;
+  } finally {
+    setAssetBusy(false);
   }
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+}
+
+async function useImportedImage(kind, input, source = "upload", label = "Importeret billede") {
+  const url = await importGameImage(input, source);
+  if (kind === "frame") {
+    setMode("pro");
+    const pro = ensureProConfig();
+    pro.frames.push(createProFrame(`frame_${Date.now()}`, { imageData: url, walkable: config.walkable }));
+    activeProFrameIndex = pro.frames.length - 1;
+    syncProEditorUi();
+  } else if (kind === "clue") {
+    pendingClueImageData = url;
+    setMode("editor");
+    setTool("clue");
+    document.getElementById("imageImportStatus").textContent = "Billedet er gemt. Klik på banen for at placere sporet.";
+  } else {
+    if (mode === "play") setMode("editor");
+    const track = activeTrack();
+    if (kind === "track") {
+      currentTrackId = safeFileId(label);
+      track.id = currentTrackId;
+      config.id = currentTrackId;
+      selectedTrackFileUrl = url;
+      track.trackImageData = url;
+      config.trackImage = url;
+      trackImage.src = url;
+      await waitForImage(trackImage);
+      resizeCanvas();
+    } else {
+      currentFigureId = safeFileId(label);
+      track.figureId = currentFigureId;
+      selectedFigureFileUrl = url;
+      track.figureImageData = url;
+      config.figureImage = url;
+      figureImage.src = url;
+      await waitForImage(figureImage);
+    }
+    syncUiFromConfig();
+  }
+  persistActiveConfig();
+  draw();
 }
 
 function revokeBlobUrl(url) {
@@ -1089,22 +1138,20 @@ function syncTrackProgress() {
 }
 
 async function captureImageData(image, existingData) {
-  // Same-origin teacher-server images are intentionally kept as references.
-  // Trying to rasterize a remote image can taint the canvas, and storing the
-  // API URL lets every student reopen the same class background later.
-  if (existingData && !String(existingData).startsWith("data:")) return existingData;
+  // Never rasterize cross-origin images in the browser. Legacy sources are
+  // copied by the shared import pipeline before any online save.
+  if (existingData) return existingData;
   await waitForImage(image);
-  if (!image.naturalWidth) return existingData || null;
-  if (image.src.startsWith("data:")) return image.src;
-  return imageToDataUrl(image);
+  if (!image.naturalWidth) throw new Error("Et billede kunne ikke indlæses. Vælg billedet igen før gemning.");
+  return image.src;
 }
 
 async function commitActiveTrack() {
   if (!game?.tracks.length) return;
   const track = activeTrack();
   config.id = currentTrackId;
-  const trackImageSource = selectedTrackFileUrl || track.trackImageData || assetPath("Tracks", currentTrackId);
-  const figureImageSource = selectedFigureFileUrl || track.figureImageData || assetPath("Figures", currentFigureId);
+  const trackImageSource = selectedTrackFileUrl || track.trackImageData || config.trackImage || assetPath("Tracks", currentTrackId);
+  const figureImageSource = selectedFigureFileUrl || track.figureImageData || config.figureImage || assetPath("Figures", currentFigureId);
   config.trackImage = trackImageSource;
   config.figureImage = figureImageSource;
   config.objective.type = ui.objectiveType.value;
@@ -1146,14 +1193,16 @@ function applyTrackImages(track) {
     selectedTrackFileUrl = track.trackImageData;
     trackImage.src = track.trackImageData;
   } else {
-    trackImage.src = assetPath("Tracks", track.id);
+    selectedTrackFileUrl = track.config.trackImage || assetPath("Tracks", track.id);
+    trackImage.src = selectedTrackFileUrl;
   }
 
   if (track.figureImageData) {
     selectedFigureFileUrl = track.figureImageData;
     figureImage.src = track.figureImageData;
   } else {
-    figureImage.src = assetPath("Figures", track.figureId);
+    selectedFigureFileUrl = track.config.figureImage || assetPath("Figures", track.figureId);
+    figureImage.src = selectedFigureFileUrl;
   }
 }
 
@@ -1215,6 +1264,8 @@ async function goToNextTrack() {
 }
 
 function syncAccessState() {
+  // Status may be folded away while building, but never while playing.
+  if (mode === "play" && ui.gameStatus) ui.gameStatus.open = true;
   ui.playHelp.hidden = mode !== "play";
   ui.editorTools.hidden = mode !== "editor" && mode !== "pro";
   ui.proEditorTools.hidden = mode !== "pro";
@@ -2319,7 +2370,7 @@ async function addProImageFrames(event) {
   try {
     const images = await Promise.all(files.map(async (file) => ({
       name: file.name,
-      data: await fileToDataUrl(file),
+      data: await importGameImage(file),
     })));
     for (const image of images) {
       pro.frames.push(createProFrame(`frame_${Date.now()}_${pro.frames.length + 1}`, {
@@ -2332,8 +2383,8 @@ async function addProImageFrames(event) {
     syncProEditorUi();
     persistActiveConfig();
     draw();
-  } catch {
-    alert("En eller flere billedrammer kunne ikke læses.");
+  } catch (error) {
+    alert(error.message || "En eller flere billedrammer kunne ikke læses.");
   }
 }
 
@@ -2422,6 +2473,7 @@ function imageToDataUrl(image) {
 }
 
 async function buildBundle() {
+  await assetClient.whenIdle();
   await commitActiveTrack();
   return {
     version: 2,
@@ -2483,40 +2535,11 @@ function absolutizeOnlineSource(value) {
 }
 
 function rewriteOnlineBundleSources(bundle) {
-  const copy = JSON.parse(JSON.stringify(bundle));
-  if (!Array.isArray(copy.tracks)) return copy;
-  copy.tracks.forEach((track) => {
-    if (!track || typeof track !== "object") return;
-    track.trackImageData = absolutizeOnlineSource(track.trackImageData);
-    track.figureImageData = absolutizeOnlineSource(track.figureImageData);
-    if (track.config && typeof track.config === "object") {
-      track.config.trackImage = absolutizeOnlineSource(track.config.trackImage);
-      track.config.figureImage = absolutizeOnlineSource(track.config.figureImage);
-    }
-  });
-  return copy;
+  return assetClient.hydrate(bundle);
 }
 
-function prepareOnlineBundle(bundle) {
-  const copy = JSON.parse(JSON.stringify(bundle));
-  let removedLocalImages = 0;
-  const removeDataUrl = (object, key) => {
-    if (typeof object?.[key] === "string" && /^data:/i.test(object[key])) {
-      delete object[key];
-      removedLocalImages += 1;
-    }
-  };
-
-  copy.tracks?.forEach((track) => {
-    if (!track || typeof track !== "object") return;
-    removeDataUrl(track, "trackImageData");
-    removeDataUrl(track, "figureImageData");
-    if (track.config && typeof track.config === "object") {
-      removeDataUrl(track.config, "trackImage");
-      removeDataUrl(track.config, "figureImage");
-    }
-  });
-  return { bundle: copy, removedLocalImages };
+async function prepareOnlineBundle(bundle) {
+  return assetClient.prepareBundle(bundle);
 }
 
 async function refreshOnlineClasses() {
@@ -2605,25 +2628,26 @@ async function applyOnlineLibraryAsset(kind) {
     const track = activeTrack();
     const sourceId = onlineStudentId(`server_${safeFileId(entry.id)}`).slice(0, 48)
       || (isTrack ? "server_track" : "server_figure");
+    const permanentUrl = await importGameImage(entry.assetId ? { assetId: entry.assetId } : entry.url, entry.source || "upload");
     if (isTrack) {
       currentTrackId = sourceId;
       track.id = currentTrackId;
       track.label = entry.name;
-      selectedTrackFileUrl = entry.url;
-      track.trackImageData = entry.url;
+      selectedTrackFileUrl = permanentUrl;
+      track.trackImageData = permanentUrl;
       config.id = currentTrackId;
-      config.trackImage = entry.url;
-      trackImage.src = entry.url;
+      config.trackImage = permanentUrl;
+      trackImage.src = permanentUrl;
       await waitForImage(trackImage);
       if (!trackImage.naturalWidth) throw new Error("Banebilledet kunne ikke indlæses.");
       resizeCanvas();
     } else {
       currentFigureId = sourceId;
       track.figureId = currentFigureId;
-      selectedFigureFileUrl = entry.url;
-      track.figureImageData = entry.url;
-      config.figureImage = entry.url;
-      figureImage.src = entry.url;
+      selectedFigureFileUrl = permanentUrl;
+      track.figureImageData = permanentUrl;
+      config.figureImage = permanentUrl;
+      figureImage.src = permanentUrl;
       await waitForImage(figureImage);
       if (!figureImage.naturalWidth) throw new Error("Figurbilledet kunne ikke indlæses.");
     }
@@ -2651,23 +2675,19 @@ function onlineIdentity() {
 
 async function saveOnlineGame() {
   if (!ONLINE_MODE) return;
+  setAssetBusy(true);
   try {
     const identity = onlineIdentity();
     ui.onlineSaveButton.disabled = true;
     setOnlineStatus("Gemmer spillet…");
     const originalBundle = await buildBundle();
-    // Keep images with games saved to the local class server. The public API
-    // has no shared image store yet, so it must continue to reject data URLs.
-    const prepared = ONLINE_API_BASE
-      ? prepareOnlineBundle(originalBundle)
-      : { bundle: originalBundle, removedLocalImages: 0 };
-    const bundle = prepared.bundle;
+    const bundle = await prepareOnlineBundle(originalBundle);
     const serializedBundle = JSON.stringify(bundle);
     const bundleBytes = new TextEncoder().encode(serializedBundle).byteLength;
     const maxBundleBytes = ONLINE_API_BASE ? MAX_ONLINE_BUNDLE_BYTES : MAX_LOCAL_SERVER_BUNDLE_BYTES;
     if (bundleBytes > maxBundleBytes) {
       throw new Error(ONLINE_API_BASE
-        ? "Spillet er for stort til onlinelagring. Gem det som fil, eller opret et nyt spil uden lokale billeder. Billeder kan ikke gemmes online endnu."
+        ? "Spillet indeholder for mange spildata til onlinelagring. Gem det som fil eller fordel banerne i flere spil."
         : "Spillet er for stort til klasseserveren. Brug mindre billeder eller gem som fil.");
     }
     const result = await onlineApi(`/api/classes/${encodeURIComponent(identity.classId)}/games/${encodeURIComponent(identity.studentId)}`, {
@@ -2675,19 +2695,22 @@ async function saveOnlineGame() {
       body: serializedBundle,
       headers: { "X-TegneSpil-Pin": identity.pin },
     });
-    const imageNote = prepared.removedLocalImages
-      ? " Lokale billeder blev ikke gemt online."
-      : "";
-    setOnlineStatus(`Gemt i ${identity.classId} som ${result.file || `${identity.studentId}.dgm`}.${imageNote}`);
+    game = migrateBundleToGame(bundle);
+    config = normalizeConfig(activeTrack().config, currentTrackId, currentFigureId);
+    applyTrackImages(activeTrack());
+    saveGameToStorage();
+    setOnlineStatus(`Gemt med alle billeder i ${identity.classId} som ${result.file || `${identity.studentId}.dgm`}.`);
   } catch (error) {
     setOnlineStatus(error.message || "Spillet kunne ikke gemmes.", true);
   } finally {
+    setAssetBusy(false);
     ui.onlineSaveButton.disabled = false;
   }
 }
 
 async function loadOnlineGame() {
   if (!ONLINE_MODE) return;
+  setAssetBusy(true);
   try {
     const identity = onlineIdentity();
     ui.onlineLoadButton.disabled = true;
@@ -2696,7 +2719,11 @@ async function loadOnlineGame() {
       `/api/classes/${encodeURIComponent(identity.classId)}/games/${encodeURIComponent(identity.studentId)}`,
       { headers: { "X-TegneSpil-Pin": identity.pin } },
     ));
-    game = migrateBundleToGame(bundle);
+    const readyBundle = bundle.version === 3 ? bundle : await prepareOnlineBundle(bundle);
+    // activateTrack commits the current editor before a normal track switch.
+    // Clear that mode before replacing the entire game.
+    setMode("play");
+    game = migrateBundleToGame(readyBundle);
     advancingTrack = false;
     await activateTrack(game.currentTrackIndex);
     setTool("walk");
@@ -2705,6 +2732,7 @@ async function loadOnlineGame() {
   } catch (error) {
     setOnlineStatus(error.message || "Spillet kunne ikke åbnes.", true);
   } finally {
+    setAssetBusy(false);
     ui.onlineLoadButton.disabled = false;
   }
 }
@@ -2725,7 +2753,7 @@ let pendingSaveBundle = null;
 
 async function saveBundle() {
   await saveConfig();
-  const bundle = await buildBundle();
+  const bundle = await prepareOnlineBundle(await buildBundle());
   pendingSaveBundle = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
   ui.saveFilename.value = safeFileId(game.name || game.id);
   ui.saveDialog.hidden = false;
@@ -2761,18 +2789,25 @@ function performSaveBundle(filename) {
 function loadBundle(file) {
   const reader = new FileReader();
   reader.onload = async () => {
+    try {
     const bundle = JSON.parse(reader.result);
     if (!bundle.tracks && !bundle.config) {
       alert("Ugyldigt bundlefil-format.");
       return;
     }
 
-    game = migrateBundleToGame(bundle);
+    const legacyGame = migrateBundleToGame(bundle);
+    const prepared = await prepareOnlineBundle(legacyGame);
+    setMode("play");
+    game = migrateBundleToGame(prepared);
     advancingTrack = false;
     ui.loadBundleInput.value = "";
     await activateTrack(game.currentTrackIndex);
     setTool("walk");
     setMode("play");
+    } catch (error) {
+      alert(error.message || "Spillet kunne ikke åbnes.");
+    }
   };
   reader.readAsText(file);
 }
@@ -2833,9 +2868,9 @@ async function handleTrackFileSelected(event) {
   if (!file) return;
   revokeBlobUrl(selectedTrackFileUrl);
   try {
-    selectedTrackFileUrl = await fileToDataUrl(file);
-  } catch {
-    alert("Baggrundsbilledet kunne ikke læses.");
+    selectedTrackFileUrl = await importGameImage(file);
+  } catch (error) {
+    alert(error.message || "Baggrundsbilledet kunne ikke læses.");
     event.target.value = "";
     return;
   }
@@ -2853,12 +2888,11 @@ async function handleFigureFileSelected(event) {
   }
   const [file] = event.target.files || [];
   revokeBlobUrl(selectedFigureFileUrl);
-  selectedFigureFileUrl = null;
   if (file) {
     try {
-      selectedFigureFileUrl = await fileToDataUrl(file);
-    } catch {
-      alert("Figurbilledet kunne ikke læses.");
+      selectedFigureFileUrl = await importGameImage(file);
+    } catch (error) {
+      alert(error.message || "Figurbilledet kunne ikke læses.");
       event.target.value = "";
       return;
     }
@@ -2907,49 +2941,22 @@ function setOnlinePanelOpen(isOpen) {
 
 async function loadTrackFromInput() {
   if (mode === "play") return;
-  await saveConfig();
-  currentTrackId = ui.trackInput.value.trim() || currentTrackId;
-  activeTrack().id = currentTrackId;
-  selectedTrackFileUrl = null;
-  setAssetSources();
-  await Promise.all([waitForImage(trackImage), waitForImage(figureImage)]);
-  if (!trackImage.naturalWidth) {
-    alert("Baggrundsbilledet kunne ikke vises. Tjek navnet eller vælg en billedfil.");
-    return;
+  const value = ui.trackInput.value.trim() || currentTrackId;
+  try {
+    await useImportedImage("track", /^https:\/\//i.test(value) ? value : assetPath("Tracks", value), /^https:\/\//i.test(value) ? "web" : "upload", value);
+  } catch (error) {
+    alert(error.message);
   }
-  activeTrack().trackImageData = trackImage.src.startsWith("data:") || trackImage.src.startsWith("blob:")
-    ? trackImage.src
-    : null;
-  // Keep all tiles, objects and editor settings. This field changes only the
-  // background selected in the Bane box.
-  config.id = currentTrackId;
-  config.trackImage = assetPath("Tracks", currentTrackId);
-  activeTrack().config = JSON.parse(JSON.stringify(config));
-  syncUiFromConfig();
-  saveGameToStorage();
-  setMode("editor");
-  resizeCanvas();
 }
 
 async function loadFigureFromInput() {
   if (mode === "play") return;
-  await saveConfig();
-  currentFigureId = ui.figureInput.value.trim() || currentFigureId || "figure_1";
-  activeTrack().figureId = currentFigureId;
-  selectedFigureFileUrl = null;
-  setAssetSources();
-  await waitForImage(figureImage);
-  if (!figureImage.naturalWidth) {
-    alert("Figurbilledet kunne ikke vises. Tjek navnet eller vælg en billedfil.");
-    return;
+  const value = ui.figureInput.value.trim() || currentFigureId || "figure_1";
+  try {
+    await useImportedImage("figure", /^https:\/\//i.test(value) ? value : assetPath("Figures", value), /^https:\/\//i.test(value) ? "web" : "upload", value);
+  } catch (error) {
+    alert(error.message);
   }
-  config.figureImage = assetPath("Figures", currentFigureId);
-  activeTrack().config = JSON.parse(JSON.stringify(config));
-  activeTrack().figureImageData = null;
-  syncUiFromConfig();
-  saveGameToStorage();
-  setMode("editor");
-  draw();
 }
 
 function drawBackground() {
@@ -3421,6 +3428,18 @@ window.addEventListener("beforeunload", releaseBackgroundMusic);
 window.addEventListener("pagehide", () => {
   persistActiveConfig();
 });
+document.getElementById("imageImportButton").addEventListener("click", async () => {
+  const input = document.getElementById("imageImportUrl");
+  const value = input.value.trim();
+  if (!value || !input.reportValidity()) return;
+  try {
+    await useImportedImage(document.getElementById("imageImportKind").value, value,
+      document.getElementById("imageImportSource").value, "Importeret billede");
+    input.value = "";
+  } catch (error) {
+    document.getElementById("imageImportStatus").textContent = error.message;
+  }
+});
 ui.trackFileInput.addEventListener("change", handleTrackFileSelected);
 ui.figureFileInput.addEventListener("change", handleFigureFileSelected);
 ui.trackInput.addEventListener("keydown", (event) => {
@@ -3529,20 +3548,19 @@ ui.clueImageInput.addEventListener("change", async (event) => {
   const [file] = event.target.files || [];
   if (!file) return;
   try {
-    pendingClueImageData = await fileToDataUrl(file);
-  } catch {
-    pendingClueImageData = null;
-    alert("Billedet kunne ikke læses.");
+    pendingClueImageData = await importGameImage(file);
+  } catch (error) {
+    alert(error.message || "Billedet kunne ikke læses.");
   }
 });
 ui.clueEditImageInput.addEventListener("change", async (event) => {
   const [file] = event.target.files || [];
   if (!file) return;
   try {
-    editClueImageData = await fileToDataUrl(file);
+    editClueImageData = await importGameImage(file);
     updateClueEditImagePreview();
-  } catch {
-    alert("Billedet kunne ikke læses.");
+  } catch (error) {
+    alert(error.message || "Billedet kunne ikke læses.");
   } finally {
     event.target.value = "";
   }

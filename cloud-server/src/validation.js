@@ -1,5 +1,6 @@
 export const MAX_BUNDLE_BYTES = 1_800_000;
 export const MAX_GAME_COUNT_PER_CLASS = 80;
+import "../../src/asset-pipeline.js";
 
 export function safeSegment(value) {
   if (typeof value !== "string") return null;
@@ -25,20 +26,6 @@ export function requirePin(value) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function validateImageSource(value, fieldName) {
-  if (value === null || value === undefined || value === "") return;
-  if (typeof value !== "string" || value.length > 2048) {
-    throw new Error(`${fieldName} er ugyldig eller for stor.`);
-  }
-  if (/^(?:data:|javascript:|vbscript:)/i.test(value) || /\.svg(?:$|[?#])/i.test(value)) {
-    throw new Error(`${fieldName} må ikke være en uploadet datafil, SVG eller script.`);
-  }
-  if (/^https:\/\//i.test(value)) return;
-  if (/^[A-Za-z0-9][A-Za-z0-9 _./()%-]*$/.test(value)
-      && !value.split("/").some((part) => part === ".." || part === ".")) return;
-  throw new Error(`${fieldName} har en ugyldig billedadresse.`);
 }
 
 function scanJson(value, depth = 0) {
@@ -67,6 +54,7 @@ export function validateBundle(bundle, rawBytes) {
     throw new Error("Spillet er for stort til onlinelagring. Fjern store billeder og prøv igen.");
   }
   if (!isPlainObject(bundle)) throw new Error("Spillet skal være et objekt.");
+  if (bundle.version !== 3) throw new Error("Opdatér TegneSpil og gem igen, så alle billeder kommer med.");
   if (!Array.isArray(bundle.tracks) || bundle.tracks.length < 1 || bundle.tracks.length > 64) {
     throw new Error("Spillet skal indeholde mellem 1 og 64 baner.");
   }
@@ -75,10 +63,12 @@ export function validateBundle(bundle, rawBytes) {
     if (!isPlainObject(track) || !isPlainObject(track.config)) {
       throw new Error(`Bane ${index + 1} har et ugyldigt format.`);
     }
-    validateImageSource(track.trackImageData, `Baggrund på bane ${index + 1}`);
-    validateImageSource(track.figureImageData, `Figur på bane ${index + 1}`);
-    validateImageSource(track.config.trackImage, `Baggrundsreference på bane ${index + 1}`);
-    validateImageSource(track.config.figureImage, `Figurreference på bane ${index + 1}`);
+    for (const field of ["trackImage", "figureImage"]) {
+      if (!globalThis.TegneSpilAssets.isReference(track.config[field])) {
+        throw new Error(`Bane ${index + 1} mangler en permanent billedreference.`);
+      }
+    }
   });
+  globalThis.TegneSpilAssets.assetIds(bundle);
   return bundle;
 }

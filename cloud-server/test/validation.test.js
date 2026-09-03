@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { requirePin, safeStudentId, validateBundle } from "../src/validation.js";
 
 function bundle(overrides = {}) {
-  return { version: 2, tracks: [{ id: "track_1", config: { trackImage: "Tracks/track_1.png", figureImage: "Figures/figure_1.png" } }], ...overrides };
+  return { version: 3, tracks: [{ id: "track_1", config: { trackImage: { builtin: "default-track" }, figureImage: { builtin: "default-figure" } } }], ...overrides };
 }
 
 test("normalizes a student name to a safe ID", () => {
