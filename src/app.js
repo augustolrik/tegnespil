@@ -3480,7 +3480,7 @@ document.getElementById("imageImportButton").addEventListener("click", async () 
   if (!value || !input.reportValidity()) return;
   try {
     await useImportedImage(document.getElementById("imageImportKind").value, value,
-      document.getElementById("imageImportSource").value, "Importeret billede");
+      "web", "Importeret billede");
     input.value = "";
   } catch (error) {
     document.getElementById("imageImportStatus").textContent = error.message;

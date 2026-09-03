@@ -47,9 +47,8 @@
           <input id="figureFileInput" type="file" accept="image/*" hidden>
 
           <details class="toolbar-editor-only image-import">
-            <summary>Importér billede fra nettet / PhotoDrop</summary>
+            <summary>Importér billede fra nettet</summary>
             <label>Billedadresse <input id="imageImportUrl" type="url" placeholder="https://…" spellcheck="false"></label>
-            <label>Kilde <select id="imageImportSource"><option value="web">Nettet</option><option value="photodrop">PhotoDrop</option></select></label>
             <label>Brug som <select id="imageImportKind"><option value="track">Baggrund</option><option value="figure">Figur</option><option value="clue">Billede til spor</option><option value="frame">Pro-ramme</option></select></label>
             <button id="imageImportButton" type="button">Importér og brug billede</button>
           </details>
@@ -488,6 +487,6 @@
     </main>
 
     <script src="src/asset-pipeline.js?v=cloud-assets-20260903"></script>
-    <script src="src/app.js?v=background-label-20260903"></script>
+    <script src="src/app.js?v=web-import-only-20260903"></script>
   </body>
 </html>

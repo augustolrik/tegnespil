@@ -8,7 +8,7 @@ Denne mappe er den nye, separate server til online gemning. Den ændrer **ikke**
 - Elevens navn/initialer sammen med en personlig 4-cifret kode beskytter spillet. Koden gemmes kun som saltet SHA-256-hash.
 - Stopper efter fem forkerte PIN-forsøg fra samme klient i ti minutter.
 - Accepterer kun valideret JSON-spilindhold op til 1,8 MB. Data-URL'er, SVG og scripts afvises. Elever kan derfor ikke lægge programmer eller vilkårlige filer på lærerens computer.
-- Importerer billeder fra PhotoDrop, filvalg og nettet gennem én pipeline: validering, WebP-behandling, R2 og en permanent `assetId`-reference i spillet. Den oprindelige webadresse bruges kun som dokumentation.
+- Importerer billeder fra filvalg og nettet gennem én pipeline: validering, WebP-behandling, R2 og en permanent `assetId`-reference i spillet. Den oprindelige webadresse bruges kun som dokumentation.
 - Stopper nye billeduploads, når TegneSpils egne R2-assets når 9,6 GB. Det ligger under Cloudflare R2 Standard free tier på 10 GB-month, og aktuelt forbrug kan læses på `/api/assets/usage`.
 
 ## Klargøring på Cloudflare (først når læreren er klar)
