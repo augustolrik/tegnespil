@@ -222,6 +222,13 @@ button:hover,
   overflow: auto;
 }
 
+.game-column {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
 #gameCanvas {
   width: min(100%, 900px);
   height: auto;
@@ -448,6 +455,11 @@ body.pro-mode .pro-collapse-section > :not(summary) {
   border: 1px solid #a8cfd0;
   border-radius: 8px;
   background: #f3fbfb;
+}
+
+.game-column > .online-panel {
+  width: min(100%, 900px);
+  justify-self: center;
 }
 
 .online-toggle {

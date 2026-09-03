@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>TegneSpil</title>
-    <link rel="stylesheet" href="src/styles.css?v=music-panel-20260903">
+    <link rel="stylesheet" href="src/styles.css?v=online-below-game-20260903">
   </head>
   <body>
     <main class="app">
@@ -82,39 +82,10 @@
         </div>
       </section>
 
-      <section class="stage-shell">
-        <canvas id="gameCanvas" width="900" height="1200" aria-label="Drawing game board"></canvas>
-      </section>
-
-      <aside class="panel">
-        <details id="gameStatus" class="game-status" open>
-          <summary class="game-status-heading">
-            <h2 id="gameStatusTitle">Spilstatus</h2>
-            <span class="local-draft-status">Kladde gemmes automatisk</span>
-          </summary>
-          <div class="status-grid">
-            <div>
-              <span>Point</span>
-              <strong id="scoreText">0 / 15</strong>
-            </div>
-            <div>
-              <span>Tilstand</span>
-              <strong id="modeText">Spil</strong>
-            </div>
-            <div>
-              <span>Bane</span>
-              <strong id="trackProgressText">1 / 1</strong>
-            </div>
-            <div>
-              <span>Felt</span>
-              <strong id="tileText">Gå</strong>
-            </div>
-          </div>
-        </details>
-
-        <div id="playHelp" class="hint">
-          Brug piletasterne til at flytte. Når en bane er gennemført, går spillet videre til næste bane.
-        </div>
+      <section class="game-column">
+        <section class="stage-shell">
+          <canvas id="gameCanvas" width="900" height="1200" aria-label="Drawing game board"></canvas>
+        </section>
 
         <section id="onlinePanel" class="online-panel" hidden aria-labelledby="onlinePanelTitle">
           <button id="onlineToggleButton" class="online-toggle" type="button" aria-expanded="false" aria-controls="onlinePanelContent">
@@ -188,6 +159,37 @@
             <p id="onlineStatus" class="online-status" role="status" aria-live="polite">Ikke tilsluttet</p>
           </div>
         </section>
+      </section>
+
+      <aside class="panel">
+        <details id="gameStatus" class="game-status" open>
+          <summary class="game-status-heading">
+            <h2 id="gameStatusTitle">Spilstatus</h2>
+            <span class="local-draft-status">Kladde gemmes automatisk</span>
+          </summary>
+          <div class="status-grid">
+            <div>
+              <span>Point</span>
+              <strong id="scoreText">0 / 15</strong>
+            </div>
+            <div>
+              <span>Tilstand</span>
+              <strong id="modeText">Spil</strong>
+            </div>
+            <div>
+              <span>Bane</span>
+              <strong id="trackProgressText">1 / 1</strong>
+            </div>
+            <div>
+              <span>Felt</span>
+              <strong id="tileText">Gå</strong>
+            </div>
+          </div>
+        </details>
+
+        <div id="playHelp" class="hint">
+          Brug piletasterne til at flytte. Når en bane er gennemført, går spillet videre til næste bane.
+        </div>
 
         <div id="editorTools" class="editor-tools" hidden>
           <details class="pro-collapse-section" open>
@@ -506,6 +508,6 @@
     </main>
 
     <script src="src/asset-pipeline.js?v=cloud-assets-20260903"></script>
-    <script src="src/app.js?v=music-panel-20260903"></script>
+    <script src="src/app.js?v=online-below-game-20260903"></script>
   </body>
 </html>

@@ -13,3 +13,4 @@
 - Class-library sync: `cloud-server` has a fast default sync that reads the online library first and uploads only new class-image filenames. Use the `:all` script variant only when replacing an image while keeping its filename.
 - Image imports: The server no longer limits image imports per hour. Images are still validated, processed to WebP, deduplicated and stopped at the 9.6 GB R2 storage ceiling.
 - Music controls: The toolbar shows only `Indlæs MP3` until a music file is chosen. The selected file then appears in a compact fold-out control containing change, play, stop and volume controls.
+- Online panel: Online save/load is displayed below the game canvas instead of inside the editor/status panel.
