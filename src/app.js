@@ -1336,8 +1336,13 @@ function isMonsterObjective() {
     || ui.objectiveType.value === "pointsMonstersPortals";
 }
 
+function objectiveSupportsPortals(objectiveType) {
+  return objectiveType === "pointsAndMonsters"
+    || objectiveType === "pointsMonstersPortals";
+}
+
 function isPortalObjective() {
-  return ui.objectiveType.value === "pointsMonstersPortals";
+  return objectiveSupportsPortals(ui.objectiveType.value);
 }
 
 function isCodeObjective() {
@@ -1796,7 +1801,7 @@ function moveMonsters() {
 }
 
 function resolvePortalMove() {
-  if (config.objective.type !== "pointsMonstersPortals") return false;
+  if (!objectiveSupportsPortals(config.objective.type)) return false;
   const portal = portalAt(state.player.col, state.player.row);
   if (!portal) return false;
   const pair = portalPairFor(portal);
@@ -3241,7 +3246,7 @@ function drawMonsters() {
 }
 
 function drawPortals() {
-  if (config.objective.type !== "pointsMonstersPortals") return;
+  if (!objectiveSupportsPortals(config.objective.type)) return;
   const size = cellSize();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
