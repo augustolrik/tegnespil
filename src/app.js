@@ -2398,9 +2398,8 @@ function editProCell(cell) {
 function addProBlankFrame() {
   const pro = ensureProConfig();
   if (!pro) return;
-  const current = pro.frames[activeProFrameIndex];
   const frame = createProFrame(`frame_${Date.now()}`, {
-    walkable: current?.walkable || config.walkable,
+    imageData: blankImageDataUrl(),
   });
   pro.frames.push(frame);
   activeProFrameIndex = pro.frames.length - 1;

@@ -15,3 +15,4 @@
 - Music controls: The toolbar shows only `Indlæs MP3` until a music file is chosen. The selected file then appears in a compact fold-out control containing change, play, stop and volume controls.
 - Online panel: Online save/load is displayed below the game canvas instead of inside the editor/status panel.
 - Editor layout: `Gitter og udseende` is collapsed by default to keep the editor compact.
+- Pro editor: `Tilføj tom ramme` creates a white frame with no inherited route or losing cells.
